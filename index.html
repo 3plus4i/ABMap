@@ -1,0 +1,367 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta name="keywords" content="Alphabounce, Map, Maps, Karbonis, Belt, Data, Merchants, Missiles, Antimatter, pink, Crystals, Stars, Levels, Planets, Asteroids"/> 
+  <meta name="robot" content="index,follow"/> 
+  <meta name="copyright" content="©2008 by EEBKiller"/> 
+  <meta name="author" content="EEBKiller"/> 
+  <meta name="language" content="English"/> 
+  <meta name="revisit-after" content="7"/> 
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/> 
+<title>AlphaBounce - &raquo; The Map &laquo; - [0][0]</title>
+<style type="text/css">
+body {
+   margin: 0px;
+   padding: 0px;
+   font-size: 10px;
+   font-family: verdana;
+   background: #000000;
+   color: #FFFFFF;
+}
+
+div {
+   margin: 0px;
+   padding: 0px;
+}
+
+select, option, input, td {
+   font-size: 11px;
+}
+
+a:link { color: #FF2F2F; }
+a:visited { color: #FF2F2F; }
+a:hover { color: #FFBF00; }
+
+select, input {
+   border: 1px solid #FFFF7F;
+   background: #000000;
+   color: #FFFFFF;
+   padding: 2px;
+}
+
+h1 {
+   margin: 4px;
+   padding: 0px;
+   font-style: italic;
+   font-weight: bold;
+   font-size: 24px;
+}
+
+h2 {
+   margin: 4px;
+   padding: 0px;
+   font-style: italic;
+   font-weight: bold;
+   font-size: 15px;
+}
+
+.map_cell {
+   height: 18px;
+   width: 20px;
+}
+
+.updown {
+   height: 16px;
+   width: 16px;
+   background-image: URL('./images/abmap/gui/updown.gif');
+}
+
+.up, .down {
+   height: 8px;
+   width: 16px;
+   cursor: pointer;
+}
+
+.legend1 {
+   width: 20px;
+   height: 16px;
+}
+
+.legend2 {
+   font-size: 11px;
+   font-weight: bold;
+   color: #AFFFAF;
+}
+
+.legend3 {
+   vertical-align: top;
+   font-size: 15px;
+   font-weight: bold;
+   font-style: italic;
+   color: #FFBF3F;
+}
+
+.destination {
+   color: #FFBF3F;
+   font-weight: bold;
+}
+
+.trans_fee {
+   color: #AFFFAF;
+   font-weight: bold;
+}
+
+#welcome {
+  padding: 10px;
+  width: 740px;
+  font-size: 13px;
+  border: 1px solid #FFFFFF;
+  background-color: #000000;
+  position: absolute;
+  left: 36px;
+  top: 20px;
+  display: block;
+  z-index: 5;
+}
+
+#infobox {
+   position: absolute;
+   top: 0px;
+   left: 0px;
+   display: none;
+   border: 1px solid #FFFF7F;
+   background: #000000;
+   padding: 3px;
+   padding-left: 7px;
+   padding-right: 7px;
+   text-align: center;
+   z-index: 10;
+}
+
+#map_data, #level_data {
+}
+
+#opacity1 {
+   border: 1px solid #FFFFFF;
+   height: 30px;
+   width: 208px;
+   background-image: URL('./images/abmap/gui/opacity.gif');
+   position: relative;
+}
+
+#opacity2 {
+   height: 30px;
+   width: 9px;
+   z-index: 1;
+   background-image: URL('./images/abmap/gui/pointer.gif');
+   position: absolute;
+   top: 0px;
+   left: 100px;}
+
+#opacity3 {
+   height: 30px;
+   width: 208px;
+   z-index: 2;
+   position: absolute;
+   top: 0px;
+   left: 0px;
+}
+
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.10/browser/pixi.js"></script>
+<script type="text/javascript" language="JavaScript" src="eebcms_xmlhttp.js"></script>
+<script type="text/javascript" language="JavaScript">
+// <![CDATA[
+    pos_x = 0;
+    pos_y = 0;
+    map_size = 20;
+    map_name = '';
+    opacity = 50;    map_layer = "sp";
+// ]]>
+</script>
+</head>
+<body>
+<div id="welcome">
+<div align="center"><img src="images/abmap-head.png" alt="" border="0"/></div>
+<br/>
+<br/>Welcome to &raquo; The Map &laquo; for AlphaBounce !!!
+<br/>
+<br/>This is the first class navigation system for all prisoners and rebels in the Zonkerian System. You can find out, how many minerals the levels on your route have got and can decide, if it is worth to visit them.
+<br/>
+<br/>Most of the mission subjects of both sides, <span style="color: #00FF00;"><b>ESCORP</b></span> and <span style="color: #FF0000;"><b>FURI</b></span> are marked on this map. You can also find all missiles and can see, what items the shops have to offer
+<br/>
+<br/>To see the details of a level, simply hover with your mouse over it. If data is available, it will be shown at the right side of the map. To 'scroll' on this map, click on a random point. The new center of the map will be the point you clicked at.
+<br/>
+<br/>There are two layers: The space and the planetary. The planetary layer shows you all information about the landing sites of all planets and most asteriods. So you can easily find all PID-Pieces, crystals and inhabitants, who need a 'taxi'.
+<br/>
+<br/>At the moment, this map contains information about <b>198987</b> space levels. If you want to provide us with more screenshots, you can use our upload-terminal for them. For taking the screenshots we recommend a program, that will save them in a format, that this site can handle. It is named 'ABScreenMaker' and can be downloaded &raquo;&nbsp;<a href="https://web.archive.org/web/20120419043301/http://minemap.golbarg.fr/ABBackground/ABScreen.exe" target="_blank">here</a>&nbsp;&laquo; More information about this program, you can find &raquo;&nbsp;<a href="https://web.archive.org/web/20120419043301/http://www.alphabounce.com/forum/thread/46281?;page=1" target="_blank">here</a>&nbsp;&laquo;
+<br/>
+<br/>If you want to upload a huge bunch of screens, (about 100 or more) we recommend to ZIP or RAR them all together and upload them to a freehoster-site and post a link to the ZIP/RAR in &raquo;&nbsp;<a href="http://www.alphabounce.com/forum/thread/70614" target="_blank">this thread</a>&nbsp;&laquo;
+<br/>
+<br/>&raquo;&nbsp;<a href="/add.php" target="_blank" onclick="window.open('/add.php', 'Add', 'width=600, height=530, left=100, top=100'); return false;">Upload terminal</a>&nbsp;&laquo; (Popup-blocker may block this window!)
+<br/>
+<br/><span style="color: #FFBF00; font-size: 16px;"><b><i>So help others, then others will help you too !!!</i></b></span>
+<br/>
+<br/><span style="font-size: 16px;">&raquo;&nbsp;<a href="#" target="_blank" onclick="close_welcome(); return false;"><b>Close this window</b></a>&nbsp;&laquo;</span>
+<br/>
+<br/>This site got <b>1013789</b> visitors since 21. Dec. 2008.
+<br/>
+<br/>To view this site correctly, we recommend:
+<br/>
+<div align="center"><a href="http://www.firefox-browser.de/" target="_blank"><img src="images/firefox.gif" title="Get Firefox now!" style="margin-bottom: 3px;" alt="" border="0"/></a>
+<br/><img src="images/resolution.gif" title="Resolution" alt="" border="0"/></div>
+</div>
+<table border="0" cellspacing="0" cellpadding="3">
+  <tr>
+    <td align="center" valign="middle" style="width: 828px; height: 746px; position: relative;">
+<div id="map_data">
+<div id="level_data">
+</div>
+</div>
+<div id="infobox"></div>
+    </td>
+    <td rowspan="2" align="center" valign="top">
+      <table border="0" cellspacing="0" cellpadding="0" style="table-layout: fixed;">
+        <tr>
+          <td style="width: 410px; height: 370px;" id="pic_box" align="center" align="middle">
+          </td>
+        </tr>
+        <tr>
+          <td style="height: 200px;" align="center" valign="top" id="data_box">
+             For full functionality of this tool you have to enable JavaScript !
+          </td>
+        </tr>
+        <tr>
+          <td>
+      <table border="0" cellspacing="1" cellpadding="0" width="100%">
+        <tr>
+          <td colspan="4" align="center">
+            <img src="images/empty.gif" width="400" height="1" border="0" alt=""/>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" align="center"><h2>Minerals</h2></td>
+          <td colspan="2" align="center"><h2>Planets</h2></td>
+        </tr>
+        <tr>
+          <td style="width: 20px;"><div class="legend1" style="background: #FF0000;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 0</td>
+          <td style="width: 20px;"><img src="images/blue.gif" border="0" alt=""/></td>
+          <td>&nbsp;&nbsp;House contains blue crystal</td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #FF7F00;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 1 - 4</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #FFFF00;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 5 - 9</td>
+          <td><img src="images/pink.gif" border="0" alt=""/></td>
+          <td>&nbsp;&nbsp;House contains pink crystal</td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #00FF00;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 10 - 24</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #00FF7F;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 25 - 50</td>
+          <td><img src="images/merchant.gif" border="0" alt=""/></td>
+          <td>&nbsp;&nbsp;Surface merchant</td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #00FFFF;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 50 - 99</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #00AAFF;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 100 - 149</td>
+          <td><img src="images/transport.gif" border="0" alt=""/></td>
+          <td>&nbsp;&nbsp;Transport mission</td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #0055FF;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 150 - 199</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #0000FF;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 200 - 299</td>
+          <td><img src="images/es-fu.gif" border="0" alt=""/></td>
+          <td>&nbsp;&nbsp;<span style="color: #00FF00;"><b>ESCORP</b></span> / <span style="color: #FF0000;"><b>FURI</b></span> mission</td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #3F00FF;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 300 - 399</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><div class="legend1" style="background: #7F00FF;"></div></td>
+          <td class="legend2">&nbsp;&nbsp;<img src="images/minerals.gif" border="0" alt=""/> 400 and more</td>
+          <td><img src="images/map.gif" border="0" alt=""/></td>
+          <td>&nbsp;&nbsp;Part of the PID-map</td>
+        </tr>
+        <tr>
+          <td>&nbsp;</td>
+          <td class="legend2">&nbsp;</td>
+          <td colspan="2"><br/>Currently viewing @ 
+<script type="text/javascript" language="javascript">
+// <![CDATA[
+    res = screen.width + "x" + screen.height;
+    document.write('<img src="counter.php?action=updateRes&amp;res=' + res + '&amp;b1=0000a0&amp;b2=000000&amp;i1=000040&amp;i2=ffffff" alt="" /><br />');
+// ]]>
+</script>
+          </td>
+        </tr>
+      </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+<table border="0" cellspacing="0" cellpadding="3">
+  <tr>
+    <td colspan="2" style="width: 280px;">&nbsp;</td>
+ <!--   <td style="width: 120px;" align="center">Map Size:</td>
+    <td style="width: 65px; vertical-align: baseline;">
+      <input type="text" name="map_size" id="map_size" onchange="changeSize(0);" value="20" size="2" maxlength="2" style="float: left; margin-right: 10px;" />
+      <table border="0" cellspacing="0" cellpadding="0" class="updown">
+        <tr><td class="up" onclick="changeSize(1);"></td></tr>
+        <tr><td class="down" onclick="changeSize(-1);"></td></tr>
+      </table>
+    </td> -->
+    <td rowspan="2" style="width: 350px;" align="center">
+      <div id="opacity1">
+        <div id="opacity2"></div>
+        <div id="opacity3"></div>
+      </div>
+    </td>
+    <td style="width: 200px; font-size: 15px;" align="center"><i><b>Show Layer:</b></i></td>
+  </tr>
+  <tr>
+    <td align="center">Position X:</td>
+    <td>
+      <input type="text" name="position_x" id="position_x" onchange="pos_x = this.value; loadMap();" value="0" size="5" maxlength="5"/>
+    </td>
+    <td align="left">
+      &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="layer" value="0" onclick="changeLayer(1);" checked="checked"/> Space
+    </td>
+  </tr>
+  <tr>
+    <td align="center">Position Y:</td>
+    <td>
+      <input type="text" name="position_y" id="position_y" onchange="pos_y = this.value; loadMap();" value="0" size="5" maxlength="5"/>
+    </td>
+    <td align="center">Transparency: <span id="op_display"></span></td>
+    <td align="left">
+      &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="layer" value="0" onclick="changeLayer(2);"/> Planets &amp; Asteroids
+    </td>
+  </tr>
+</table>
+    </td>
+  </tr>
+</table>
+</body>
+<script type="text/javascript" language="JavaScript" src="script.js"></script>
+</html>
