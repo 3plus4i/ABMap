@@ -18,21 +18,22 @@ var ABMap = function(x,y) {
 	this.CY = 0;
 	this.CX = 0;
 	this.size = 20;
-	this.xmax = 2 * this.size + 1;
-	this.ymax = this.xmax;
-	ABMap.WW = this.xmax * ABMap.BW;
-	ABMap.HH = this.ymax * ABMap.BH;
+	this.XMAX = 2 * this.size + 1;
+	this.YMAX = this.XMAX;
+	ABMap.WW = this.XMAX * ABMap.BW;
+	ABMap.HH = this.YMAX * ABMap.BH;
 	this.CX = x;
 	this.CY = y;
 	ABMap.SX = this.CX - this.size;
 	ABMap.SY = this.CY - this.size;
+	this.frame = new PIXI.Rectangle(0,0,ABMap.BW,ABMap.BH);
 	this.seedTable = new haxe_ds_StringMap();
 	var _g = 0;
-	var _g1 = this.xmax + ABMap.ZONE_MARGIN * 2;
+	var _g1 = this.XMAX + ABMap.ZONE_MARGIN * 2;
 	while(_g < _g1) {
 		var x = _g++;
 		var _g2 = 0;
-		var _g3 = this.ymax + ABMap.ZONE_MARGIN * 2;
+		var _g3 = this.YMAX + ABMap.ZONE_MARGIN * 2;
 		while(_g2 < _g3) {
 			var y = _g2++;
 			var px = x + ABMap.SX - ABMap.ZONE_MARGIN;
@@ -43,21 +44,44 @@ var ABMap = function(x,y) {
 			_this.h["" + x + "," + y] = value;
 		}
 	}
+	var id = 0;
+	this.zones = [];
+	this.zoneTable = new haxe_ds_StringMap();
+	var _g = 0;
+	var _g1 = ZoneInfo.list;
+	while(_g < _g1.length) {
+		var zone = _g1[_g];
+		++_g;
+		if(this.isZoneIn(zone.pos)) {
+			var zone1 = { id : id, list : ZoneInfo.getSquares(id)};
+			this.zones.push(zone1);
+			var _g2 = 0;
+			var _g3 = zone1.list;
+			while(_g2 < _g3.length) {
+				var p = _g3[_g2];
+				++_g2;
+				var x = p[0] - ABMap.SX;
+				var y = p[1] - ABMap.SY;
+				this.zoneTable.h["" + x + "," + y] = id;
+			}
+		}
+		++id;
+	}
 	this.bmpBg = PIXI.RenderTexture.create(ABMap.WW,ABMap.HH);
 	var base = new PIXI.Graphics();
 	base.beginFill(Main.COL_SPACE);
 	base.drawRect(0,0,ABMap.WW,ABMap.HH);
 	Main.draw(this.bmpBg,base,new PIXI.Matrix());
 	var stars = [];
-	var brushLight = PIXI.Sprite.from(Main.app.loader.resources["mcLuz"].texture);
+	var brushLight = PIXI.Sprite.from(Main.textures.h["mcLuz"]);
 	brushLight.anchor.set(0.5,0.5);
 	brushLight.blendMode = PIXI.BLEND_MODES.ADD;
 	var _g = 0;
-	var _g1 = this.xmax + 2 * ABMap.ZONE_MARGIN;
+	var _g1 = this.XMAX + 2 * ABMap.ZONE_MARGIN;
 	while(_g < _g1) {
 		var px = _g++;
 		var _g2 = 0;
-		var _g3 = this.ymax + 2 * ABMap.ZONE_MARGIN;
+		var _g3 = this.YMAX + 2 * ABMap.ZONE_MARGIN;
 		while(_g2 < _g3) {
 			var py = _g2++;
 			var x = px - ABMap.ZONE_MARGIN;
@@ -75,7 +99,7 @@ var ABMap = function(x,y) {
 				brushLight.tint = Main.objToCol(o);
 				Main.draw(this.bmpBg,brushLight,m);
 			}
-			if(x >= 0 && x < this.xmax && y >= 0 && y < this.ymax) {
+			if(x >= 0 && x < this.XMAX && y >= 0 && y < this.YMAX) {
 				var max = seed.random(3);
 				var _g4 = 0;
 				var _g5 = max;
@@ -86,7 +110,7 @@ var ABMap = function(x,y) {
 			}
 		}
 	}
-	var brushStar = PIXI.Sprite.from(Main.app.loader.resources["Star"].texture);
+	var brushStar = PIXI.Sprite.from(Main.textures.h["Star"]);
 	brushStar.anchor.set(0.5,0.5);
 	var _g = 0;
 	while(_g < stars.length) {
@@ -98,21 +122,243 @@ var ABMap = function(x,y) {
 		m.translate(p[0],p[1]);
 		Main.draw(this.bmpBg,brushStar,m);
 	}
+	var _g = 0;
+	var _g1 = this.zones;
+	while(_g < _g1.length) {
+		var zone = _g1[_g];
+		++_g;
+		var zi = ZoneInfo.list[zone.id];
+		var brush = PIXI.Sprite.from(Main.textures.h["planet" + zone.id]);
+		brush.anchor.set(0.5);
+		var m = new PIXI.Matrix();
+		m.translate((zi.pos[0] - ABMap.SX) * ABMap.BW,(zi.pos[1] - ABMap.SY) * ABMap.BH);
+		Main.draw(this.bmpBg,brush,m);
+	}
+	var shop = PIXI.Sprite.from(Main.textures.h["merchant"]);
+	var _g = 0;
+	var _g1 = this.XMAX;
+	while(_g < _g1) {
+		var x = _g++;
+		var _g2 = 0;
+		var _g3 = this.YMAX;
+		while(_g2 < _g3) {
+			var y = _g2++;
+			var wx = ABMap.SX + x;
+			var wy = ABMap.SY + y;
+			var dst = Math.sqrt(wx * wx + wy * wy);
+			var seed = this.seedTable.h["" + (x + ABMap.ZONE_MARGIN) + "," + (y + ABMap.ZONE_MARGIN)];
+			if(seed.random(40 + Math.pow(dst,1.4) | 0) == 0) {
+				var m = new PIXI.Matrix();
+				m.translate(x * ABMap.BW,y * ABMap.BH);
+				Main.draw(this.bmpBg,shop,m);
+			}
+		}
+	}
+	var items = [1,2,3,7,8,9,10,11,12,13,61,62,63,64,65,66,67,68,69,71,72,73,75,76,77,79,81,87,88,89,90,92,93,97,98,99,100,101,110];
+	this.itemTex = Main.textures.h["mapIcons"];
+	var sIndex = 0;
+	var _g = 0;
+	while(_g < items.length) {
+		var i = items[_g];
+		++_g;
+		this.drawIcon(i,sIndex++);
+	}
+	this.drawIcon(18,39);
+	this.drawIcon(19,39);
+	this.drawIcon(20,39);
+	this.drawIcon(21,39);
+	this.drawIcon(22,39);
+	this.drawIcon(23,39);
+	this.drawIcon(24,39);
+	this.drawIcon(25,39);
+	this.drawIcon(26,39);
+	this.drawIcon(27,39);
+	this.drawIcon(28,39);
+	this.drawIcon(29,39);
+	this.drawIcon(30,39);
+	this.drawIcon(31,39);
+	this.drawIcon(32,39);
+	this.drawIcon(33,39);
+	this.drawIcon(34,39);
+	this.drawIcon(35,39);
+	this.drawIcon(36,39);
+	this.drawIcon(37,39);
+	this.drawIcon(38,39);
+	this.drawIcon(39,39);
+	this.drawIcon(40,39);
+	this.drawIcon(41,39);
+	this.drawIcon(42,39);
+	this.drawIcon(43,39);
+	this.drawIcon(44,39);
+	this.drawIcon(45,39);
+	this.drawIcon(46,39);
+	this.drawIcon(47,39);
+	this.drawIcon(48,39);
+	this.drawIcon(49,39);
+	this.drawIcon(50,39);
+	this.drawIcon(51,39);
+	this.drawIcon(52,39);
+	this.drawIcon(53,39);
+	this.drawIcon(54,39);
+	this.drawIcon(55,39);
+	this.drawIcon(56,39);
+	this.drawIcon(57,39);
+	this.drawIcon(82,40);
+	this.drawIcon(83,40);
+	this.drawIcon(84,40);
+	this.drawIcon(85,40);
+	this.drawIcon(102,41);
+	this.drawIcon(103,41);
+	this.drawIcon(104,41);
+	this.drawIcon(105,41);
+	this.drawIcon(106,41);
+	this.drawIcon(107,41);
+	this.drawIcon(108,41);
+	this.drawIcon(109,41);
+	this.drawIcon(114,42);
+	this.drawIcon(115,42);
+	this.drawIcon(116,42);
+	this.drawIcon(117,42);
+	this.drawIcon(118,42);
+	this.drawIcon(119,42);
+	this.drawIcon(120,42);
+	this.drawIcon(121,42);
+	this.drawIcon(122,42);
+	this.drawIcon(123,42);
+	this.drawIcon(124,42);
+	this.drawIcon(125,42);
+	var pid = PIXI.Sprite.from(Main.textures.h["pid"]);
+	var _g = 128;
+	while(_g < 170) {
+		var i = _g++;
+		var item = MissionInfo.ITEMS[i];
+		if(item.x > ABMap.SX && item.x < ABMap.SX + this.XMAX && item.y > ABMap.SY && item.y < ABMap.SY + this.YMAX) {
+			var m = new PIXI.Matrix();
+			m.translate((item.x - ABMap.SX) * ABMap.BW,(item.y - ABMap.SY) * ABMap.BH);
+			Main.draw(this.bmpBg,pid,m);
+		}
+	}
+	var bmp = new PIXI.Graphics();
+	var xOffset = this.CX % 5;
+	var yOffset = this.CY % 5;
+	bmp.beginFill(16777215,0.1);
+	var _g = 0;
+	var _g1 = this.XMAX;
+	while(_g < _g1) {
+		var x = _g++;
+		if((x + xOffset) % 5 > 1) {
+			bmp.drawRect(x * ABMap.BW,0,1,ABMap.HH);
+		}
+	}
+	var _g = 0;
+	var _g1 = this.YMAX;
+	while(_g < _g1) {
+		var y = _g++;
+		if((y + yOffset) % 5 > 1) {
+			bmp.drawRect(0,y * ABMap.BH,ABMap.WW,1);
+		}
+	}
+	bmp.beginFill(16777215,0.3);
+	var _g = 0;
+	var _g1 = this.XMAX;
+	while(_g < _g1) {
+		var x = _g++;
+		if((x + xOffset) % 5 <= 1) {
+			bmp.drawRect(x * ABMap.BW,0,1,ABMap.HH);
+		}
+	}
+	var _g = 0;
+	var _g1 = this.YMAX;
+	while(_g < _g1) {
+		var y = _g++;
+		if((y + yOffset) % 5 <= 1) {
+			bmp.drawRect(0,y * ABMap.BH,ABMap.WW,1);
+		}
+	}
+	Main.draw(this.bmpBg,bmp,new PIXI.Matrix());
 };
 ABMap.__name__ = true;
+ABMap.prototype = {
+	isZoneIn: function(pos) {
+		if(pos[2] == 0) {
+			return false;
+		}
+		var xMin = ABMap.SX;
+		var yMin = ABMap.SY;
+		var XMAX = ABMap.SX + this.XMAX;
+		var YMAX = ABMap.SY + this.YMAX;
+		if(pos.length == 3) {
+			xMin -= pos[2];
+			yMin -= pos[2];
+			XMAX += pos[2];
+			YMAX += pos[2];
+		} else {
+			xMin -= pos[2];
+			yMin -= pos[3];
+		}
+		var x = pos[0];
+		var y = pos[1];
+		if(x >= xMin && x < XMAX && y >= yMin) {
+			return y < YMAX;
+		} else {
+			return false;
+		}
+	}
+	,drawIcon: function(id,sIndex) {
+		var item = MissionInfo.ITEMS[id];
+		if(item.x > ABMap.SX && item.x < ABMap.SX + this.XMAX && item.y > ABMap.SY && item.y < ABMap.SY + this.YMAX) {
+			this.frame.y = sIndex * ABMap.BH;
+			this.itemTex.frame = this.frame;
+			var icon = PIXI.Sprite.from(this.itemTex);
+			var m = new PIXI.Matrix();
+			m.translate((item.x - ABMap.SX) * ABMap.BW,(item.y - ABMap.SY) * ABMap.BH);
+			Main.draw(this.bmpBg,icon,m);
+		}
+	}
+};
 var Main = $hx_exports["Main"] = function() { };
 Main.__name__ = true;
 Main.main = function() {
 	Main.app = new PIXI.Application({ width : 820, height : 738});
 	window.document.getElementById("map_data").appendChild(Main.app.view);
-	Main.app.loader.baseUrl = "images";
-	Main.app.loader.add("mcLuz","sprites/mcLuz.png").add("Star","sprites/Star.png");
-	Main.app.loader.once("complete",Main.init);
-	Main.app.loader.load();
+	Main.textures = new haxe_ds_StringMap();
+	var preload = ["mcLuz","Star","merchant","pid","mapIcons"];
+	var _g = 0;
+	var _g1 = ZoneInfo.list.length;
+	while(_g < _g1) {
+		var i = _g++;
+		preload.push("planet" + i);
+	}
+	var result = new Array(preload.length);
+	var _g = 0;
+	var _g1 = preload.length;
+	while(_g < _g1) {
+		var i = _g++;
+		var n = [preload[i]];
+		var tmp = PIXI.Texture.fromURL("https://3plus4i.github.io/ABMap/images/sprites/" + n[0] + ".png");
+		var tmp1 = (function(n) {
+			return function(t) {
+				return { name : n[0], texture : t};
+			};
+		})(n);
+		result[i] = tmp.then(tmp1);
+	}
+	Promise.all(result).then(function(loaded) {
+		var _g = 0;
+		while(_g < loaded.length) {
+			var t = loaded[_g];
+			++_g;
+			Main.textures.h[t.name] = t.texture;
+		}
+		Main.init();
+	});
 };
 Main.init = function() {
 	Main.map = new ABMap(0,0);
-	Main.app.stage.addChild(Main.map.bmpBg);
+	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
+};
+Main.close_welcome = function() {
+	window.document.getElementById("welcome").style.display = "none";
 };
 Main.draw = function(onto,object,matrix) {
 	Main.app.renderer.render(object,{ renderTexture : onto, clear : false, transform : matrix});
@@ -121,6 +367,227 @@ Main.objToCol = function(o) {
 	return o.r << 16 | o.g << 8 | o.b;
 };
 Math.__name__ = true;
+var ZoneInfo = function() { };
+ZoneInfo.__name__ = true;
+ZoneInfo.getBox = function(p) {
+	return { cx : p.pos[0], cy : p.pos[1], rad : p.pos[2], xmin : p.pos[0] - p.pos[2], xmax : p.pos[0] + p.pos[2] - 1, ymin : p.pos[1] - p.pos[2], ymax : p.pos[1] + p.pos[2] - 1};
+};
+ZoneInfo.getPlanet = function(x,y) {
+	var planet = null;
+	var id = 0;
+	var _g = 0;
+	var _g1 = ZoneInfo.list;
+	while(_g < _g1.length) {
+		var p = _g1[_g];
+		++_g;
+		if(p == null) {
+			throw haxe_Exception.thrown("list contains null element : " + Std.string(ZoneInfo.list));
+		}
+		if(p.pos == null) {
+			throw haxe_Exception.thrown("p.pos == null : " + Std.string(p));
+		}
+		var sq = ZoneInfo.getBox(p);
+		if(x >= sq.xmin && x <= sq.xmax && y >= sq.ymin && y <= sq.ymax) {
+			planet = id;
+			break;
+		}
+		++id;
+	}
+	if(planet == null) {
+		return null;
+	}
+	var p = ZoneInfo.list[planet];
+	if(ZoneInfo.isInCircle(x,y,p.pos[0],p.pos[1],p.pos[2])) {
+		return planet;
+	}
+	return null;
+};
+ZoneInfo.getSquares = function(id) {
+	var a = [];
+	var box = ZoneInfo.getBox(ZoneInfo.list[id]);
+	var _g = box.xmin;
+	var _g1 = box.xmax + 1;
+	while(_g < _g1) {
+		var x = _g++;
+		var _g2 = box.ymin;
+		var _g3 = box.ymax + 1;
+		while(_g2 < _g3) {
+			var y = _g2++;
+			if(ZoneInfo.isInCircle(x,y,box.cx,box.cy,box.rad)) {
+				a.push([x,y]);
+			}
+		}
+	}
+	return a;
+};
+ZoneInfo.isInCircle = function(x,y,cx,cy,rad) {
+	var dx = cx - x - 0.5;
+	var dy = cy - y - 0.5;
+	return Math.sqrt(dx * dx + dy * dy) <= rad + ZoneInfo.TOLERANCE;
+};
+ZoneInfo.main = function() {
+	var _g = 0;
+	var _g1 = ZoneInfo.list.length;
+	while(_g < _g1) {
+		var id = _g++;
+		ZoneInfo.test(id);
+	}
+};
+ZoneInfo.test = function(id) {
+	console.log("../Alphabounce/v2/com/ZoneInfo.hx:274:","### PLANET " + id);
+	var squares = ZoneInfo.getSquares(id);
+	var manual = [];
+	var coords = ZoneInfo.getBox(ZoneInfo.list[id]);
+	var _g = coords.xmin - 1;
+	var _g1 = coords.xmax + 1;
+	while(_g < _g1) {
+		var x = _g++;
+		var _g2 = coords.ymin - 1;
+		var _g3 = coords.ymax + 1;
+		while(_g2 < _g3) {
+			var y = _g2++;
+			if(ZoneInfo.isInCircle(x,y,coords.cx,coords.cy,coords.rad)) {
+				manual.push([x,y]);
+			}
+		}
+	}
+	if(squares.length != manual.length) {
+		throw haxe_Exception.thrown("different sizes : " + squares.length + " != " + manual.length);
+	}
+	var size = squares.length;
+	while(squares.length > 0) {
+		var s = squares.pop();
+		var m = manual.pop();
+		if(s[0] != m[0] || s[1] != m[1]) {
+			throw haxe_Exception.thrown("Prout");
+		}
+	}
+	console.log("../Alphabounce/v2/com/ZoneInfo.hx:293:","ok : " + size + " blocks for radius " + coords.rad);
+};
+ZoneInfo.initFonction = function() {
+	return true;
+};
+ZoneInfo.setDifficultyXXX = function(n) {
+	if(ZoneInfo.DIF != 0) {
+		return;
+	}
+	ZoneInfo.DIF = n;
+	if(ZoneInfo.DIF == 1) {
+		var seed = new mt_Rand(87);
+		var _g = 0;
+		var _g1 = ZoneInfo.list;
+		while(_g < _g1.length) {
+			var pl = _g1[_g];
+			++_g;
+			var x = pl.pos[1];
+			var y = pl.pos[0];
+			var a = Math.atan2(y,x) + (1 + ((seed.seed = seed.seed * 16807 % 2147483647) & 1073741823) % 10007 / 10007.0 * 2.14) * (((seed.seed = seed.seed * 16807 % 2147483647) & 1073741823) % 2 * 2 - 1);
+			var dist = Math.sqrt(x * x + y * y) * (1.1 + Math.random() * 0.2);
+			var nx = Math.cos(a) * dist | 0;
+			var ny = Math.sin(a) * dist | 0;
+			var pdx = nx - pl.pos[0];
+			var pdy = ny - pl.pos[1];
+			var ray = pl.pos[2];
+			var _g2 = 0;
+			var _g3 = MissionInfo.ITEMS;
+			while(_g2 < _g3.length) {
+				var item = _g3[_g2];
+				++_g2;
+				var dx = item.x - pl.pos[0];
+				var dy = item.y - pl.pos[1];
+				if(Math.abs(dx) <= ray && Math.abs(dy) <= ray) {
+					item.x += pdx;
+					item.y += pdy;
+				}
+			}
+			pl.pos[0] = nx;
+			pl.pos[1] = ny;
+			pl.pos[2] += 2;
+		}
+	}
+};
+var mt_OldRandom = function(seed,prec) {
+	if(prec == null) {
+		prec = 55;
+	}
+	if(seed == null) {
+		seed = 0;
+	}
+	this.prec = prec;
+	this.idx = 0;
+	this.vals = [];
+	var int = Std.int;
+	var _g = 0;
+	var _g1 = prec;
+	while(_g < _g1) {
+		var i = _g++;
+		seed = int(seed * 1103515245.0) & 1073741823;
+		seed += 12345;
+		seed &= 1073741823;
+		var sbig = seed & 1073676288;
+		seed = int(seed * 1103515245.0) & 1073741823;
+		seed += 12345;
+		seed &= 1073741823;
+		this.vals.push(seed >> 16 | sbig);
+	}
+};
+mt_OldRandom.__name__ = true;
+mt_OldRandom.prototype = {
+	int: function() {
+		this.idx = (this.idx + 1) % this.prec;
+		var v = this.vals[(this.idx + 24) % this.prec] + this.idx & 1073741823;
+		this.vals[this.idx] = v;
+		return v;
+	}
+	,random: function(max) {
+		return this.int() % max;
+	}
+	,rand: function() {
+		return this.int() % 1000 / 1000.0;
+	}
+	,clone: function() {
+		var r = new mt_OldRandom();
+		r.prec = this.prec;
+		r.idx = this.idx;
+		r.vals = this.vals.slice();
+		return r;
+	}
+};
+var Std = function() { };
+Std.__name__ = true;
+Std.string = function(s) {
+	return js_Boot.__string_rec(s,"");
+};
+Std.int = function(x) {
+	return x | 0;
+};
+var MissionInfo = function() { };
+MissionInfo.__name__ = true;
+MissionInfo.initFonction = function() {
+	MissionInfo.ITEMS = MissionInfo.decryptedList;
+	var seed = new mt_OldRandom(2657);
+	var mi = MissionInfo.LIST[12];
+	var ray = 5;
+	var max = 39;
+	var a = seed.random(6280) / 1000;
+	var _g = 0;
+	var _g1 = max;
+	while(_g < _g1) {
+		var i = _g++;
+		var c = i / max;
+		var id = 18 + (i + 1);
+		var ray = 9 + Math.pow(c,2) * 500;
+		a += 1 + seed.random(3000) / 1000;
+		var x = Math.cos(a) * ray | 0;
+		var y = Math.sin(a) * ray | 0;
+		MissionInfo.ITEMS.splice(id,0,{ x : x, y : y, fam : 1});
+		mi.endItem.push([id,5]);
+	}
+	return true;
+};
+MissionInfo.get = function(id) {
+	return MissionInfo.LIST[id];
+};
 var Random = function(s) {
 	this.seed = s;
 };
@@ -135,6 +602,39 @@ Random.prototype = {
 		return this.seed % n;
 	}
 };
+var ShopInfo = function() { };
+ShopInfo.__name__ = true;
+var haxe_Exception = function(message,previous,native) {
+	Error.call(this,message);
+	this.message = message;
+	this.__previousException = previous;
+	this.__nativeException = native != null ? native : this;
+};
+haxe_Exception.__name__ = true;
+haxe_Exception.thrown = function(value) {
+	if(((value) instanceof haxe_Exception)) {
+		return value.get_native();
+	} else if(((value) instanceof Error)) {
+		return value;
+	} else {
+		var e = new haxe_ValueException(value);
+		return e;
+	}
+};
+haxe_Exception.__super__ = Error;
+haxe_Exception.prototype = $extend(Error.prototype,{
+	get_native: function() {
+		return this.__nativeException;
+	}
+});
+var haxe_ValueException = function(value,previous,native) {
+	haxe_Exception.call(this,String(value),previous,native);
+	this.value = value;
+};
+haxe_ValueException.__name__ = true;
+haxe_ValueException.__super__ = haxe_Exception;
+haxe_ValueException.prototype = $extend(haxe_Exception.prototype,{
+});
 var haxe_ds_StringMap = function() {
 	this.h = Object.create(null);
 };
@@ -246,6 +746,71 @@ js_Boot.__string_rec = function(o,s) {
 		return String(o);
 	}
 };
+var mt_Rand = function(seed) {
+	this.seed = (seed < 0 ? -seed : seed) + 131;
+};
+mt_Rand.__name__ = true;
+mt_Rand.prototype = {
+	clone: function() {
+		var r = new mt_Rand(0);
+		r.seed = this.seed;
+		return r;
+	}
+	,random: function(n) {
+		return ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % n;
+	}
+	,range: function(min,max,randSign) {
+		if(randSign == null) {
+			randSign = false;
+		}
+		return (min + ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % 10007 / 10007.0 * (max - min)) * (randSign ? ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % 2 * 2 - 1 : 1);
+	}
+	,irange: function(min,max,randSign) {
+		if(randSign == null) {
+			randSign = false;
+		}
+		return (min + ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % (max - min + 1)) * (randSign ? ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % 2 * 2 - 1 : 1);
+	}
+	,getSeed: function() {
+		return (this.seed | 0) - 131;
+	}
+	,rand: function() {
+		return ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % 10007 / 10007.0;
+	}
+	,sign: function() {
+		return ((this.seed = this.seed * 16807 % 2147483647) & 1073741823) % 2 * 2 - 1;
+	}
+	,addSeed: function(d) {
+		this.seed = (this.seed + d) % 2147483647 & 1073741823;
+		if(this.seed == 0) {
+			this.seed = d + 1;
+		}
+	}
+	,initSeed: function(n,k) {
+		if(k == null) {
+			k = 5;
+		}
+		var _g = 0;
+		var _g1 = k;
+		while(_g < _g1) {
+			var i = _g++;
+			n ^= n << 7 & 727393536;
+			n ^= n << 15 & 462094336;
+			n ^= n >>> 16;
+			n &= 1073741823;
+			var h = 5381;
+			h = (h << 5) + h + (n & 255);
+			h = (h << 5) + h + (n >> 8 & 255);
+			h = (h << 5) + h + (n >> 16 & 255);
+			h = (h << 5) + h + (n >> 24);
+			n = h & 1073741823;
+		}
+		this.seed = (n & 536870911) + 131;
+	}
+	,int: function() {
+		return (this.seed = this.seed * 16807 % 2147483647) & 1073741823;
+	}
+};
 String.__name__ = true;
 Array.__name__ = true;
 js_Boot.__toStr = ({ }).toString;
@@ -257,5 +822,190 @@ ABMap.HH = 0;
 ABMap.SX = 0;
 ABMap.SY = 0;
 Main.COL_SPACE = 80;
+ZoneInfo.DIF = 0;
+ZoneInfo.TOLERANCE = 0.3;
+ZoneInfo.MOLTEAR = 0;
+ZoneInfo.SOUPALINE = 1;
+ZoneInfo.LYCANS = 2;
+ZoneInfo.SAMOSA = 3;
+ZoneInfo.TIBOON = 4;
+ZoneInfo.BALIXT = 5;
+ZoneInfo.KARBONIS = 6;
+ZoneInfo.SPIGNYSOS = 7;
+ZoneInfo.POFIAK = 8;
+ZoneInfo.SENEGARDE = 9;
+ZoneInfo.DOURIV = 10;
+ZoneInfo.GRIMORN = 11;
+ZoneInfo.DTRITUS = 12;
+ZoneInfo.ASTEROBELT = 13;
+ZoneInfo.NALIKORS = 14;
+ZoneInfo.HOLOVAN = 15;
+ZoneInfo.KHORLAN = 16;
+ZoneInfo.CILORILE = 17;
+ZoneInfo.TARCITURNE = 18;
+ZoneInfo.CHAGARINA = 19;
+ZoneInfo.VOLCER = 20;
+ZoneInfo.BALMANCH = 21;
+ZoneInfo.FOLKET = 22;
+ZoneInfo.EARTH = 23;
+ZoneInfo.ASTEROBELT_CX = 27;
+ZoneInfo.ASTEROBELT_CY = 6;
+ZoneInfo.ASTEROBELT_RAY = 110;
+ZoneInfo.list = [{ "name" : "Moltear", "pos" : [-55,34,7], "col" : 11141188, "pal" : [[100,100,150,55,55,105],[100,100,100,105,55,55]]},{ "name" : "Soupaline", "pos" : [-7,1,2], "col" : 4473992, "pal" : [[40,0,200,20,20,20],[20,200,40,20,40,20]]},{ "name" : "Lycans", "pos" : [1,14,8], "col" : 11167266, "pal" : [[100,100,0,155,155,40]]},{ "name" : "Samosa", "pos" : [412,93,11], "col" : 11167266, "pal" : [[55,55,55,200,200,200]]},{ "name" : "Tiboon", "pos" : [9,-10,2], "col" : 11167266, "pal" : [[55,55,55,200,200,200]]},{ "name" : "Balixt", "pos" : [-9,-39,5], "col" : 8930406, "pal" : [[40,30,10,100,200,50]]},{ "name" : "Karbonis", "pos" : [27,6,0], "col" : 11176072, "pal" : [[170,40,70,80,60,70],[180,180,20,70,70,40]]},{ "name" : "Spignysos", "pos" : [-36,-10,5], "col" : 2237064, "pal" : [[20,40,150,20,20,100],[0,175,175,50,75,75]]},{ "name" : "Pofiak", "pos" : [-18,85,3], "col" : 1148979, "pal" : [[20,80,60,20,150,80],[150,150,20,100,100,0]]},{ "name" : "Senegarde", "pos" : [93,48,5], "col" : 8912998, "pal" : [[150,20,80,100,80,100],[50,20,200,150,50,50]]},{ "name" : "Douriv", "pos" : [-84,-102,7], "col" : 8930457, "pal" : [[200,20,20,100,20,20],[20,200,20,20,100,20],[20,20,200,20,20,100]]},{ "name" : "Grimorn", "pos" : [81,-122,4], "col" : 12303291, "pal" : [[60,60,60,60,60,60]]},{ "name" : "D-tritus", "pos" : [247,-44,2], "col" : 5592405, "pal" : [[30,30,0,150,150,60]]},{ "name" : "Asteroide", "pos" : [0,0,0], "col" : 5592405, "pal" : [[30,30,0,160,120,60],[250,200,0,50,30,0]]},{ "name" : "Nalikors", "pos" : [67,153,4], "col" : 5614216, "pal" : [[0,0,40,0,50,210],[0,40,40,0,210,210]]},{ "name" : "Holovan", "pos" : [-150,111,6], "col" : 11158664, "pal" : [[100,0,40,250,50,210],[0,40,40,250,40,40]]},{ "name" : "Khorlan", "pos" : [180,-191,5], "col" : 8956552, "pal" : [[0,100,0,150,150,150],[150,150,150,100,50,0]]},{ "name" : "Cilorile", "pos" : [78,-23,5], "col" : 8868462, "pal" : [[150,80,100,100,100,100],[100,200,200,50,50,50]]},{ "name" : "Tarciturne", "pos" : [192,115,3], "col" : 6728362, "pal" : [[60,60,60,60,60,60]]},{ "name" : "Chagarina", "pos" : [-320,-574,4], "col" : 12307648, "pal" : [[50,60,60,50,60,60]]},{ "name" : "Volcer", "pos" : [-298,-149,8], "col" : 8736938, "pal" : [[20,20,60,90,60,60],[20,70,20,20,100,60]]},{ "name" : "Balmanch", "pos" : [-340,362,5], "col" : 13417335, "pal" : [[0,0,0,120,120,120],[0,0,0,150,0,100]]},{ "name" : "Folket", "pos" : [574,-254,3], "col" : 2258858, "pal" : [[0,50,100,0,50,150]]},{ "name" : "Terre", "pos" : [8000,8100,3], "col" : 2258858, "pal" : [[0,50,100,0,50,150]]}];
+ZoneInfo.holes = [[[-9,-7],[48,23]],[[-106,54],[62,-142]],[[5,-61],[-230,1]],[[-85,-232],[-19,143]],[[121,-50],[334,-162]]];
+ZoneInfo.init = ZoneInfo.initFonction();
+MissionInfo.GOT_ITEM = 0;
+MissionInfo.GOT_SHOPITEM = 1;
+MissionInfo.GOT_PLANET = 2;
+MissionInfo.ENTER_ZONE = 3;
+MissionInfo.LEAVE_ZONE = 4;
+MissionInfo.GOT_MISSION = 5;
+MissionInfo.GOT_MISSILE = 6;
+MissionInfo.GOT_MINERAI = 7;
+MissionInfo.NOT_ITEM = 8;
+MissionInfo.IS_LEVEL = 9;
+MissionInfo.INVISIBLE = 0;
+MissionInfo.VISIBLE = 1;
+MissionInfo.COLLECTED = 2;
+MissionInfo.COLLECTED_INV = 3;
+MissionInfo.TRIGGER = 4;
+MissionInfo.SURPRISE = 5;
+MissionInfo.GROUND = 6;
+MissionInfo.MISSILE_MAX = 40;
+MissionInfo.DISABLE_LEVEL_MISSIONS = -11;
+MissionInfo.RESET_MISSION = -10;
+MissionInfo.ENABLE_REBEL_MISSIONS = -9;
+MissionInfo.ENABLE_LEVEL_MISSIONS = -8;
+MissionInfo.LOSS_RADAR = -7;
+MissionInfo.NEW_RADAR = -6;
+MissionInfo.CHS = -5;
+MissionInfo.LOSS_LIFE = -4;
+MissionInfo.NEW_LIFE = -3;
+MissionInfo.MINERAI = -1;
+MissionInfo.FIRST_LEVEL = 0;
+MissionInfo.CARD_RED = 1;
+MissionInfo.CARD_GREEN = 2;
+MissionInfo.CARD_BLUE = 3;
+MissionInfo.BALL_DRILL = 4;
+MissionInfo.HELP_SHIP = 5;
+MissionInfo.DOUGLAS = 6;
+MissionInfo.DEBRIS = 7;
+MissionInfo.EXTENSION = 14;
+MissionInfo.SYMBOLES = 15;
+MissionInfo.SALMEEN = 16;
+MissionInfo.LIFE_TODO = 17;
+MissionInfo.MISSILE = 18;
+MissionInfo.MAP_SHOP = 58;
+MissionInfo.MISSILE_BLUE = 59;
+MissionInfo.MISSILE_BLACK = 60;
+MissionInfo.STONE_LYCANS = 61;
+MissionInfo.STONE_SPIGNYSOS = 62;
+MissionInfo.STAR_RED = 63;
+MissionInfo.STAR_ORANGE = 64;
+MissionInfo.STAR_YELLOW = 65;
+MissionInfo.STAR_GREEN = 66;
+MissionInfo.STAR_SKY = 67;
+MissionInfo.STAR_BLUE = 68;
+MissionInfo.STAR_PURPLE = 69;
+MissionInfo.EDITOR = 70;
+MissionInfo.MEDAL_0 = 71;
+MissionInfo.MEDAL_1 = 72;
+MissionInfo.MEDAL_2 = 73;
+MissionInfo.MEDAL = 74;
+MissionInfo.BALL_SOLDAT = 75;
+MissionInfo.BALL_POWER = 76;
+MissionInfo.BALL_BLACK = 77;
+MissionInfo.MISSILE_RED = 78;
+MissionInfo.SUPER_RADAR = 79;
+MissionInfo.RADAR_OK = 80;
+MissionInfo.GENERATOR = 81;
+MissionInfo.ANTIMAT_0 = 82;
+MissionInfo.ANTIMAT_1 = 83;
+MissionInfo.ANTIMAT_2 = 84;
+MissionInfo.ANTIMAT_3 = 85;
+MissionInfo.EVASION = 86;
+MissionInfo.WRECK_0 = 87;
+MissionInfo.WRECK_1 = 88;
+MissionInfo.WRECK_2 = 89;
+MissionInfo.WRECK_3 = 90;
+MissionInfo.LANDER_REACTOR = 91;
+MissionInfo.COMBINAISON = 92;
+MissionInfo.SALMEEN_COUSIN = 93;
+MissionInfo.BADGE_FURI = 94;
+MissionInfo.BELT_PASS = 95;
+MissionInfo.EXTENSION_2 = 96;
+MissionInfo.CRYSTAL_0 = 97;
+MissionInfo.CRYSTAL_1 = 98;
+MissionInfo.CRYSTAL_2 = 99;
+MissionInfo.CRYSTAL_3 = 100;
+MissionInfo.CRYSTAL_4 = 101;
+MissionInfo.SCROLL_0 = 102;
+MissionInfo.SCROLL_1 = 103;
+MissionInfo.SCROLL_2 = 104;
+MissionInfo.SCROLL_3 = 105;
+MissionInfo.SCROLL_4 = 106;
+MissionInfo.SCROLL_5 = 107;
+MissionInfo.SCROLL_6 = 108;
+MissionInfo.SCROLL_7 = 109;
+MissionInfo.SYNTROGEN = 110;
+MissionInfo.EXTENSION_3 = 111;
+MissionInfo.BALL_DOUBLE = 112;
+MissionInfo.RETROFUSER = 113;
+MissionInfo.TBL_0 = 114;
+MissionInfo.TBL_1 = 115;
+MissionInfo.TBL_2 = 116;
+MissionInfo.TBL_3 = 117;
+MissionInfo.TBL_4 = 118;
+MissionInfo.TBL_5 = 119;
+MissionInfo.TBL_6 = 120;
+MissionInfo.TBL_7 = 121;
+MissionInfo.TBL_8 = 122;
+MissionInfo.TBL_9 = 123;
+MissionInfo.TBL_10 = 124;
+MissionInfo.TBL_11 = 125;
+MissionInfo.KARBONITE = 126;
+MissionInfo.MINES = 127;
+MissionInfo.EMAP_0 = 128;
+MissionInfo.EMAP_41 = 169;
+MissionInfo.EARTH_PASS = 170;
+MissionInfo.MODE_DIF = 171;
+MissionInfo.decryptedList = [{ x : 0, y : 0, "fam" : 0},{ x : 0, y : -1, "fam" : 0},{ x : -1, y : 1, "fam" : 0},{ x : 2, y : 1, "fam" : 0},{ x : 0, y : 1, "fam" : 0},{ x : 4, y : -4, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : -1, y : 8, "fam" : 0},{ x : 3, y : 8, "fam" : 0},{ x : -3, y : 7, "fam" : 0},{ x : 1, y : 9, "fam" : 0},{ x : -4, y : 9, "fam" : 0},{ x : -2, y : 11, "fam" : 0},{ x : 0, y : 6, "fam" : 0},{ x : -1, y : 0, "fam" : 0},{ x : 9, y : -10, "fam" : 0},{ x : 7, y : -10, "fam" : 0},{ x : 1, y : 1, "fam" : 0},{ x : -1, y : -2, "fam" : 1},{ x : null, y : null, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : 3, y : 16, "fam" : 0},{ x : -39, y : -9, "fam" : 0},{ x : 25, y : -110, "fam" : 2},{ x : 170, y : -100, "fam" : 2},{ x : 115, y : 80, "fam" : 2},{ x : -37, y : 176, "fam" : 2},{ x : -54, y : 49, "fam" : 2},{ x : -170, y : -36, "fam" : 2},{ x : -97, y : -174, "fam" : 2},{ x : null, y : null, "fam" : 0},{ x : -58, y : 30, "fam" : 0},{ x : -51, y : 37, "fam" : 0},{ x : -54, y : 40, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : -54, y : 32, "fam" : 0},{ x : -532, y : 123, "fam" : 0},{ x : 450, y : 826, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : -60, y : 36, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : 11, y : -1, "fam" : 0},{ x : 18, y : -40, "fam" : 4},{ x : -30, y : 42, "fam" : 4},{ x : 35, y : -28, "fam" : 4},{ x : 30, y : 61, "fam" : 4},{ x : null, y : null, "fam" : 0},{ x : 44, y : -5, "fam" : 0},{ x : 46, y : -1, "fam" : 0},{ x : 50, y : -9, "fam" : 0},{ x : 58, y : -12, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : 76, y : -20, "fam" : 0},{ x : -7, y : 2, "fam" : 0},{ x : 64, y : 154, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : -2, y : 0, "fam" : 0},{ x : 303, y : -60, "fam" : 5},{ x : 340, y : -112, "fam" : 5},{ x : 281, y : -76, "fam" : 5},{ x : 284, y : -15, "fam" : 5},{ x : 350, y : -44, "fam" : 5},{ x : 21, y : 118, "fam" : 6},{ x : -41, y : 93, "fam" : 6},{ x : -83, y : 19, "fam" : 6},{ x : -80, y : -20, "fam" : 6},{ x : -36, y : -84, "fam" : 6},{ x : 103, y : -73, "fam" : 6},{ x : 134, y : -21, "fam" : 6},{ x : 81, y : 102, "fam" : 6},{ x : 67, y : 152, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : -148, y : 108, "fam" : 0},{ x : 83, y : -123, "fam" : 0},{ x : 127, y : -24, "fam" : 7},{ x : 142, y : 6, "fam" : 7},{ x : 119, y : 65, "fam" : 7},{ x : 58, y : 106, "fam" : 7},{ x : -14, y : 113, "fam" : 7},{ x : -67, y : 66, "fam" : 7},{ x : -85, y : 18, "fam" : 7},{ x : -64, y : -56, "fam" : 7},{ x : -29, y : -98, "fam" : 7},{ x : 28, y : -111, "fam" : 7},{ x : 65, y : -102, "fam" : 7},{ x : 102, y : -64, "fam" : 7},{ x : 70, y : 151, "fam" : 0},{ x : null, y : null, "fam" : 0},{ x : -59, y : 34, "fam" : 8},{ x : -51, y : 36, "fam" : 8},{ x : -8, y : 1, "fam" : 8},{ x : 2, y : 20, "fam" : 8},{ x : -1, y : 16, "fam" : 8},{ x : 7, y : 9, "fam" : 8},{ x : 417, y : 93, "fam" : 8},{ x : 407, y : 92, "fam" : 8},{ x : 415, y : 85, "fam" : 8},{ x : 408, y : 100, "fam" : 8},{ x : 420, y : 99, "fam" : 8},{ x : 10, y : -12, "fam" : 8},{ x : -9, y : -43, "fam" : 8},{ x : -14, y : -38, "fam" : 8},{ x : -53, y : 90, "fam" : 8},{ x : 132, y : 44, "fam" : 8},{ x : -41, y : -13, "fam" : 8},{ x : -34, y : -10, "fam" : 8},{ x : -20, y : 83, "fam" : 8},{ x : -16, y : 83, "fam" : 8},{ x : -81, y : -105, "fam" : 8},{ x : -90, y : -106, "fam" : 8},{ x : -85, y : -108, "fam" : 8},{ x : 77, y : -121, "fam" : 8},{ x : 80, y : -123, "fam" : 8},{ x : 247, y : -46, "fam" : 8},{ x : 68, y : 150, "fam" : 8},{ x : 63, y : 151, "fam" : 8},{ x : -150, y : 111, "fam" : 8},{ x : -149, y : 116, "fam" : 8},{ x : 180, y : -193, "fam" : 8},{ x : 184, y : -189, "fam" : 8},{ x : 79, y : -28, "fam" : 8},{ x : 75, y : -24, "fam" : 8},{ x : 191, y : 113, "fam" : 8},{ x : 189, y : 116, "fam" : 8},{ x : -323, y : -575, "fam" : 8},{ x : -320, y : -577, "fam" : 8},{ x : -306, y : -149, "fam" : 8},{ x : -298, y : -151, "fam" : 8},{ x : -295, y : -142, "fam" : 8},{ x : -345, y : 359, "fam" : 8}];
+MissionInfo.ITEMS = [];
+MissionInfo.LIST = [{ name : "mission_name_0", desc : "mission_desc_0", end : "mission_end_0", startConditions : [], conditions : [[0,0]], startItem : [[0,4],[80,3]], endItem : [[80,3]]},{ name : "mission_name_1", desc : "mission_desc_1", end : "mission_end_1", startConditions : [[5,0]], conditions : [[0,1,2,3]], startItem : [[1,1],[2,1],[3,1]], endItem : [[-8],[4,3]]},{ name : "mission_name_2", desc : "mission_desc_2", end : "mission_end_2", startConditions : [[5,3]], conditions : [[2,1]], startItem : [], endItem : [[-1,200],[-5,12]]},{ name : "mission_name_3", desc : "mission_desc_3", end : "mission_end_3", startConditions : [[5,1]], conditions : [[0,5]], startItem : [[5,4]], endItem : [[6,2],[-5,5]]},{ name : "mission_name_4", desc : "mission_desc_4", end : "mission_end_4", startConditions : [[5,3]], conditions : [[0,7],[0,8],[0,9],[0,10],[0,11],[0,12],[0,13]], startItem : [[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1]], endItem : [[14,1],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0]]},{ name : "mission_name_5", desc : null, end : "mission_end_5", startConditions : [[5,3]], conditions : [[4,4,-4,7]], startItem : [], endItem : [[6,0],[-3]]},{ name : "mission_name_6", desc : null, end : "mission_end_6", startConditions : [[5,0]], conditions : [[0,15]], startItem : [[15,4]], endItem : []},{ name : "mission_name_7", desc : "mission_desc_7", end : "mission_end_7", startConditions : [[5,6]], conditions : [[0,16]], startItem : [[16,4]], endItem : []},{ name : "mission_name_8", desc : null, end : "mission_end_8", startConditions : [[5,7]], conditions : [[4,7,-10,5]], startItem : [], endItem : [[-5,10]]},{ name : "mission_name_9", desc : "mission_desc_9", end : "mission_end_9", startConditions : [[5,120]], conditions : [], startItem : [], endItem : []},{ name : "mission_name_10", desc : "mission_desc_10", end : "mission_end_10", startConditions : [[5,14]], conditions : [[3,-9,-39,12]], startItem : [], endItem : []},{ name : "mission_name_11", desc : "mission_desc_11", end : "mission_end_11", startConditions : [[5,10]], conditions : [[2,5]], startItem : [], endItem : [[-3]]},{ name : "mission_name_12", desc : "mission_desc_12", end : "mission_end_12", startConditions : [[5,1]], conditions : [[0,18]], startItem : [[18,1]], endItem : []},{ name : "mission_name_13", desc : "mission_desc_13", end : "mission_end_13", startConditions : [[5,1]], conditions : [[1,0]], startItem : [], endItem : [[58,3]]},{ name : "mission_name_14", desc : "mission_desc_14", end : "mission_end_14", startConditions : [[5,15]], conditions : [[0,61,62]], startItem : [[61,1],[62,1]], endItem : [[59,3]]},{ name : "mission_name_15", desc : "mission_desc_15", end : "mission_end_15", startConditions : [[5,4]], conditions : [[0,81]], startItem : [[81,1]], endItem : []},{ name : "mission_name_16", desc : "mission_desc_16", end : "mission_end_16", startConditions : [[5,11]], conditions : [[0,63,64,65,66,67,68,69]], startItem : [[63,1],[64,1],[65,1],[66,1],[67,1],[68,1],[69,1]], endItem : [[70,3]]},{ name : "mission_name_17", desc : null, end : "mission_end_17", startConditions : [[5,0]], conditions : [[0,71,72,73]], startItem : [[71,5],[72,5],[73,5]], endItem : [[74,2]]},{ name : "mission_name_18", desc : null, end : "mission_end_18", startConditions : [[5,0]], conditions : [[4,0,0,6]], startItem : [], endItem : [[-4],[-4],[-4]]},{ name : "mission_name_19", desc : null, end : "mission_end_19", startConditions : [[0,80]], conditions : [[3,-10,-11,3],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,19]]},{ name : "mission_name_20", desc : null, end : "mission_end_20", startConditions : [[5,8],[8,171]], conditions : [[3,-58,36,9]], startItem : [], endItem : [[79,1]]},{ name : "mission_name_21", desc : "mission_desc_21", end : "mission_end_21", startConditions : [[5,14]], conditions : [[0,75]], startItem : [[75,1]], endItem : []},{ name : "mission_name_22", desc : "mission_desc_22", end : "mission_end_22", startConditions : [[5,11]], conditions : [[0,76]], startItem : [[76,1]], endItem : []},{ name : "mission_name_23", desc : "mission_name_23", end : "mission_end_23", startConditions : [[0,86],[9,100],[5,22]], conditions : [[0,77]], startItem : [[77,1]], endItem : []},{ name : "mission_name_24", desc : null, end : "mission_end_24", startConditions : [[0,80]], conditions : [[3,48,13,5],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,24]]},{ name : "mission_name_25", desc : null, end : "mission_end_25", startConditions : [[0,80]], conditions : [[3,-22,43,6],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,25]]},{ name : "mission_name_26", desc : null, end : "mission_end_26", startConditions : [[0,80]], conditions : [[3,-67,-32,7],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,26]]},{ name : "mission_name_27", desc : "mission_desc_27", end : "mission_end_27", startConditions : [[5,21]], conditions : [[0,82,83,84,85]], startItem : [[82,5],[83,5],[84,5],[85,5]], endItem : [[60,2]]},{ name : "mission_name_28", desc : "mission_desc_28", end : "mission_end_28", startConditions : [[8,95],[8,86],[4,27,6,ZoneInfo.ASTEROBELT_RAY - 20]], conditions : [[4,27,6,ZoneInfo.ASTEROBELT_RAY],[8,95]], startItem : [], endItem : [[86,2],[-11],[-10,28]]},{ name : "mission_name_29", desc : "mission_desc_29", end : "mission_end_29", startConditions : [[4,7,-10,8],[0,16]], conditions : [[0,87,88,89,90]], startItem : [[87,1],[88,1],[89,1],[90,1]], endItem : [[91,2]]},{ name : "mission_name_30", desc : "mission_desc_30", end : "mission_end_30", startConditions : [[5,29],[5,5]], conditions : [[1,28]], startItem : [], endItem : [[-4]]},{ name : "mission_name_31", desc : "mission_desc_31", end : "mission_end_31", startConditions : [[8,92],[8,86],[5,30],[4,-12,-1,60]], conditions : [[0,92]], startItem : [[92,6]], endItem : [[-5,20]]},{ name : "mission_name_32", desc : "mission_desc_32", end : "mission_end_32", startConditions : [[8,92],[0,86],[5,30],[4,-12,-1,70]], conditions : [[0,93]], startItem : [[93,6]], endItem : [[92,2]]},{ name : "mission_name_33", desc : "mission_desc_33", end : "mission_end_33", startConditions : [[0,86],[4,27,6,ZoneInfo.ASTEROBELT_RAY + 20]], conditions : [[3,67,153,7]], startItem : [], endItem : []},{ name : "mission_name_34", desc : "mission_desc_34", end : "mission_end_34", startConditions : [[0,86],[3,67,153,5]], conditions : [[0,94]], startItem : [[94,6]], endItem : [[-9]]},{ name : "mission_name_35", desc : "mission_desc_35", end : "mission_end_35", startConditions : [[8,86],[9,63]], conditions : [[5,120]], startItem : [[-5,20]], endItem : []},{ name : "mission_name_36", desc : "mission_desc_36", end : "mission_end_36", startConditions : [[8,86],[9,52]], conditions : [[2,14]], startItem : [[95,2],[-10,28]], endItem : [[-1,1500]]},{ name : "mission_name_37", desc : "mission_desc_37", end : "mission_end_37", startConditions : [[8,86],[9,100]], conditions : [[0,96]], startItem : [[96,1]], endItem : []},{ name : "mission_name_38", desc : "mission_desc_38", end : "mission_end_38", startConditions : [[8,86],[9,87]], conditions : [[0,97,98,99,100,101]], startItem : [[97,5],[98,5],[99,5],[100,5],[101,5]], endItem : [[78,2]]},{ name : "mission_name_39", desc : "mission_desc_39", end : "mission_end_39", startConditions : [[0,86],[9,20]], conditions : [[0,102,103,104,105,106,107,108,109]], startItem : [[102,1],[103,1],[104,1],[105,1],[106,1],[107,1],[108,1],[109,1]], endItem : [[110,1]]},{ name : "mission_name_40", desc : "mission_desc_40", end : "mission_end_40", startConditions : [[0,86],[9,5]], conditions : [[2,15]], startItem : [], endItem : [[112,6]]},{ name : "mission_name_41", desc : "mission_desc_41", end : "mission_end_41", startConditions : [[5,30],[5,20]], conditions : [[3,180,-191,6]], startItem : [], endItem : [[-3],[-5,50],[16,0]]},{ name : "mission_name_42", desc : "mission_desc_42", end : "mission_end_42", startConditions : [[8,86],[9,73]], conditions : [[0,113]], startItem : [[113,6]], endItem : []},{ name : "mission_name_43", desc : null, end : "mission_end_43", startConditions : [[5,5]], conditions : [[0,114,115,116,117,118,119,120,121,122,123,124,125]], startItem : [[114,6],[115,6],[116,6],[117,6],[118,6],[119,6],[120,6],[121,6],[122,6],[123,6],[124,6],[125,6]], endItem : []},{ name : "mission_name_44", desc : "mission_desc_44", end : "mission_end_44", startConditions : [[5,43]], conditions : [[0,126]], startItem : [[126,6]], endItem : [[-6]]},{ name : "mission_name_45", desc : "mission_desc_45", end : "mission_end_45", startConditions : [[8,86],[9,58]], conditions : [[2,17]], startItem : [], endItem : [[127,2]]},{ name : "mission_name_46", desc : null, end : "mission_end_46", startConditions : [[5,0]], conditions : [[5,120]], startItem : [[128,6],[129,6],[130,6],[131,6],[132,6],[133,6],[134,6],[135,6],[136,6],[137,6],[138,6],[139,6],[140,6],[141,6],[142,6],[143,6],[144,6],[145,6],[146,6],[147,6],[148,6],[149,6],[150,6],[151,6],[152,6],[153,6],[154,6],[155,6],[156,6],[157,6],[158,6],[159,6],[160,6],[161,6],[162,6],[163,6],[164,6],[165,6],[166,6],[167,6],[168,6],[169,6]], endItem : []},{ name : "mission_name_41", desc : "mission_desc_41", end : "mission_end_41", startConditions : [[5,30],[0,171]], conditions : [[3,180,-191,6]], startItem : [], endItem : [[-3],[-5,50],[16,0]]}];
+MissionInfo.init = MissionInfo.initFonction();
+ShopInfo.ENGINE_MAX = 6;
+ShopInfo.maxItem = 0;
+ShopInfo.ENGINE = 0;
+ShopInfo.MISSILE_MAP = 6;
+ShopInfo.SUNGLASSES = 7;
+ShopInfo.MISSILE = 8;
+ShopInfo.ICE = 11;
+ShopInfo.FIRE = 12;
+ShopInfo.BLACKHOLE = 13;
+ShopInfo.CHS = 14;
+ShopInfo.LATERAL = 15;
+ShopInfo.COOLER = 16;
+ShopInfo.AMMO = 17;
+ShopInfo.LIFE = 18;
+ShopInfo.DRONE = 19;
+ShopInfo.DRONE_PERFO = 20;
+ShopInfo.DRONE_SPEED = 21;
+ShopInfo.DRONE_CONVERTER = 22;
+ShopInfo.DRONE_COLLECTOR = 23;
+ShopInfo.RADAR = 24;
+ShopInfo.STORM = 25;
+ShopInfo.MISSILE_GENERATOR = 26;
+ShopInfo.ANTENNA = 27;
+ShopInfo.PODS = 28;
+ShopInfo.PODS_EXTEND_0 = 29;
+ShopInfo.PODS_EXTEND_1 = 30;
+ShopInfo.PODS_EXTEND_2 = 31;
+ShopInfo.LANDER_REACTOR_0 = 32;
+ShopInfo.LANDER_REACTOR_1 = 33;
+ShopInfo.LANDER_REACTOR_2 = 34;
+ShopInfo.MINE_0 = 35;
+ShopInfo.MINE_1 = 36;
+ShopInfo.MINE_2 = 37;
+ShopInfo.ITEMS = [{ pb : [1], price : 20},{ pb : [2], price : 200},{ pb : [3,8], price : 1000},{ pb : [4,14], price : 8000},{ pb : [7,20], price : 20000},{ pb : [6,60], price : 160000},{ pb : [2,60], price : 2000},{ pb : [6,20], price : 200},{ pb : [1], price : 100},{ pb : [10], price : 1000},{ pb : [50], price : 10000},{ pb : [4,6], price : 30},{ pb : [2], price : 20},{ pb : [7,14], price : 50},{ pb : [1], price : 210},{ pb : [8,12], price : 240},{ pb : [7,20], price : 570},{ pb : [1], price : 5},{ pb : [10], price : 700},{ pb : [2,10], price : 0},{ pb : [7,20], price : 5500},{ pb : [12,20], price : 1250},{ pb : [16,20], price : 11500},{ pb : [1,20], price : 2500},{ pb : [1], price : 60},{ pb : [3,6], price : 30},{ pb : [3,70], price : 16000},{ pb : [2,110], price : 4850},{ pb : [1], price : 0},{ pb : [8,40], price : 3500},{ pb : [11,100], price : 12000},{ pb : [10,150], price : 75000},{ pb : [3,30], price : 7500},{ pb : [11,100], price : 30000},{ pb : [10,300], price : 240000},{ pb : [3,150], price : 15200},{ pb : [5,200], price : 36400},{ pb : [8,250], price : 88000}];
 Main.main();
 })(typeof exports != "undefined" ? exports : typeof window != "undefined" ? window : typeof self != "undefined" ? self : this, {});

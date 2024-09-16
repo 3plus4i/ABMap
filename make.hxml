@@ -2,3 +2,4 @@
 -main Main
 -lib pixijs
 -cp src/
+-cp ../Alphabounce/v2/com/
