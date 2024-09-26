@@ -23,6 +23,7 @@ class Map {
 	public static var BW = 20;
 	public static var BH = 18;
 	public static var ZONE_MARGIN = 10;
+	public static var itemList:Array<Int>;
 	
 	public var XMAX:Int; // map size in zones
 	public var YMAX:Int;
@@ -37,9 +38,11 @@ class Map {
 	public var zones:Array<ZoneI>; //temp public
 	public var zoneTable:StringMap<Int>;
 	public var seedTable:StringMap<Random>;
-	public var levelTable:StringMap<
+	public var levelTable:StringMap<Level>;
 	
 	public var bmpBg:RenderTexture;
+	public var spaceLayer:Graphics;
+	public var planetLayer:Graphics;
 	public var frame:Rectangle;
 	public var itemTex:Texture;
 	var stars:Array<Star>;
@@ -56,7 +59,10 @@ class Map {
 		SX = CX - size;
 		SY = CY - size;
 		
+		levelTable = new StringMap();
 		frame = new Rectangle(0, 0, BW, BH);
+		spaceLayer = new Graphics();
+		spaceLayer.alpha = 0.5;
 		
 		// SEED TABLE
 		seedTable = new StringMap();
@@ -226,6 +232,57 @@ class Map {
 			if ((y + yOffset) % 5 <= 1) bmp.drawRect(0, y * BH, WW, 1);
 
 		Main.draw(bmpBg, bmp, new Matrix());
+	}
+	
+	public static function filerItems() {
+		itemList = new Array();
+		for (mission in MissionInfo.LIST) {
+			for (item in mission.startItem) {
+				if (item[0] > 0) if (item[1] == MissionInfo.VISIBLE || item[1] == MissionInfo.SURPRISE) itemList.push(Std.int(item[0]));
+			}
+			for (item in mission.endItem) {
+				if (item[0] > 0) if (item[1] == MissionInfo.VISIBLE || item[1] == MissionInfo.SURPRISE) itemList.push(Std.int(item[0]));
+			}
+		}
+	}
+
+	public function getLevelMap() {
+		for (x in 0...XMAX) {
+			for (y in 0...YMAX) {
+				var level = new Level(x + SX, y + SY, zoneTable.get('$x,$y'));
+				levelTable.set('$x,$y', level);
+				
+				level.getBlockTypeStats();
+				switch (level.mineralCount) {
+					case 0:
+						spaceLayer.beginFill(0xFF0000);
+					case v if (v < 5):
+						spaceLayer.beginFill(0xFF7F00);
+					case v if (v < 10):
+						spaceLayer.beginFill(0xFFFF00);
+					case v if (v < 25):
+						spaceLayer.beginFill(0x00FF00);
+					case v if (v < 50):
+						spaceLayer.beginFill(0x00FF7F);
+					case v if (v < 100):
+						spaceLayer.beginFill(0x00FFFF);
+					case v if (v < 150):
+						spaceLayer.beginFill(0x00AAFF);
+					case v if (v < 200):
+						spaceLayer.beginFill(0x0055FF);
+					case v if (v < 300):
+						spaceLayer.beginFill(0x0000FF);
+					case v if (v < 400):
+						spaceLayer.beginFill(0x3F00FF);
+					case v if (v >= 400):
+						spaceLayer.beginFill(0x7F00FF);
+					default:
+						spaceLayer.beginFill(0x000000, 0);
+						trace('ERROR: mineralCount is ${level.mineralCount} at [${x + SX}][${y + SY}]');
+				}
+				spaceLayer.drawRect(x * BW, y * BH, BW, BH);
+			}
+		}
 	}
 	
 	function isZoneIn(pos:Array<Int>) {

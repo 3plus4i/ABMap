@@ -7,6 +7,2258 @@ function $extend(from, fields) {
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
 }
+var Level = function(x,y,id) {
+	this.wx = x;
+	this.wy = y;
+	this.zid = id;
+	this.seed = new mt_OldRandom(this.wx * 10000 + this.wy);
+	this.distances = [];
+	var _g = 0;
+	var _g1 = ZoneInfo.list;
+	while(_g < _g1.length) {
+		var zone = _g1[_g];
+		++_g;
+		var dx = x - zone.pos[0];
+		var dy = y - zone.pos[1];
+		this.distances.push(Math.sqrt(dx * dx + dy * dy));
+	}
+	this.dst = Math.sqrt(x * x + y * y);
+	this.ang = Math.atan2(y,x);
+	this.lvl = Math.pow(this.dst * 0.1,0.5) | 0;
+	this.ymax = Math.min(12 + this.lvl,17) | 0;
+	this.proba = this.initProba();
+	this.genModel();
+};
+Level.__name__ = true;
+Level.isSoft = function(n) {
+	if(n != 17 && n != 46 && n != 48) {
+		return !Level.isSentinelle(n);
+	} else {
+		return false;
+	}
+};
+Level.isSentinelle = function(n) {
+	if(!(n == 16 || n == 20 || n == 51 || n == 54)) {
+		return n == 42;
+	} else {
+		return true;
+	}
+};
+Level.prototype = {
+	initProba: function() {
+		this.proba = [];
+		var NEVER = 100000.0;
+		var _g = 0;
+		_hx_loop1: while(_g < 30) {
+			var i = _g++;
+			var n = NEVER;
+			switch(i) {
+			case 0:
+				n = Math.max(5 - this.dst / 200,2);
+				if(this.distances[1] < 12) {
+					n = 1000;
+				}
+				n *= Math.min(this.distances[0] / 50,1);
+				break;
+			case 1:
+				n = 5;
+				if(this.zid == 1) {
+					n = NEVER;
+				}
+				break;
+			case 2:
+				n = 12;
+				if(this.dst < 6) {
+					n = NEVER;
+				} else if(this.dst < 20) {
+					n = 40;
+				}
+				break;
+			case 3:
+				n = 12;
+				if(this.dst < 4) {
+					n = NEVER;
+				}
+				if(this.wy < 0 || this.wx < 0) {
+					n += this.dst * 0.5;
+				}
+				if(this.zid == 2) {
+					n = 1;
+				}
+				break;
+			case 4:
+				if(this.distances[6] < 100 && this.dst > 10) {
+					n = 40;
+				}
+				break;
+			case 5:
+				if(this.dst > 30) {
+					n = Math.max(60 - this.dst * 0.5,4);
+				}
+				break;
+			case 6:
+				if(this.dst > 15) {
+					n = Math.max(50 - this.dst,3);
+				}
+				break;
+			case 7:
+				if(this.dst > 20) {
+					n = Math.max(100 - this.dst * 0.5,12);
+				}
+				break;
+			case 8:
+				if(this.wy > 10) {
+					n = 10;
+				}
+				var lim = 30;
+				if(this.distances[8] < lim) {
+					n = 1 + this.distances[8] / lim * 10;
+				}
+				break;
+			case 9:
+				if(this.dst > 4) {
+					n = Math.min(3 + this.dst * 0.1,20);
+				}
+				if(this.zid == 2) {
+					n = 2;
+				}
+				break;
+			case 10:
+				if(this.dst > 13 && this.dst < 18) {
+					n = 7;
+				}
+				if(this.dst > 58) {
+					n = 16;
+				}
+				break;
+			case 11:
+				if(this.dst > 80) {
+					n = Math.max(3,80 * Math.abs(Main.hMod(this.ang - 2.504,3.14)));
+				}
+				break;
+			case 12:
+				if(this.dst > 40) {
+					n = Math.max(2,100 - Math.pow(this.dst * 10,0.5));
+				}
+				break;
+			default:
+				break _hx_loop1;
+			}
+			this.proba[i] = Math.floor(n);
+		}
+		return this.proba;
+	}
+	,genModel: function() {
+		if(this.struct == null) {
+			var to = 0;
+			while(true) {
+				this.genPrimeModel();
+				var goal = this.getGoal();
+				if(goal > 12 && this.isModelOpen(goal) && goal < (this.lvl + 1) * 100) {
+					break;
+				}
+				if(to++ > 12) {
+					this.forceModel();
+					break;
+				}
+			}
+			var mols = [];
+			while(mols.length < 20) {
+				var max = 1 + this.seed.random(10);
+				var n = Molecule.getRandomMolType(this.seed);
+				var _g = 0;
+				var _g1 = max;
+				while(_g < _g1) {
+					var i = _g++;
+					mols.push(n);
+				}
+			}
+			var mi = 0;
+			var _g = 0;
+			while(_g < 14) {
+				var x = _g++;
+				var _g1 = 0;
+				while(_g1 < 23) {
+					var y = _g1++;
+					var n = this.model.h["" + x + "," + y];
+					if(n == 22 || n == 32) {
+						mi = (mi + 1) % mols.length;
+						this.model.h["" + x + "," + y] = n + mols[mi];
+					}
+				}
+			}
+		} else {
+			this.genStruct();
+		}
+	}
+	,genPrimeModel: function() {
+		this.flLure = false;
+		var flMirror = this.seed.random(2) == 0;
+		var flMirrorPalette = this.seed.random(2) == 0 && flMirror;
+		var density = 1 + 3 / (this.lvl + 1);
+		var bmp = PIXI.RenderTexture.create(14,23);
+		var brush = Main.textures.h["mcShape"];
+		var frame = new PIXI.Rectangle(0,0,101,101);
+		var sc = 0.06;
+		var ma = -2;
+		var max = 4 + this.lvl | 0;
+		var _g = 0;
+		var _g1 = max;
+		while(_g < _g1) {
+			var i = _g++;
+			var m = new PIXI.Matrix();
+			var scc = sc * (1 + this.seed.rand() * 0.5);
+			m.scale(scc,scc);
+			m.translate(ma + this.seed.random(14 - 2 * ma),ma + this.seed.random(this.ymax - 2 * ma));
+			frame.y = 101 * this.seed.random(13);
+			brush.frame = frame;
+			var shape = PIXI.Sprite.from(brush);
+			Main.draw(bmp,shape,m);
+		}
+		var pixels = Main.app.renderer.plugins.extract.pixels(bmp);
+		this.model = new haxe_ds_StringMap();
+		var _g = 0;
+		while(_g < 14) {
+			var x = _g++;
+			var _g1 = 0;
+			var _g2 = this.ymax;
+			while(_g1 < _g2) {
+				var y = _g1++;
+				if(Main.getPixel(pixels,x,y,14) != 0) {
+					this.model.h["" + x + "," + y] = 0;
+				}
+			}
+		}
+		var max = this.lvl;
+		if(this.zid == 10 || this.zid == 11) {
+			max = 0;
+		}
+		var _g = 0;
+		var _g1 = max;
+		while(_g < _g1) {
+			var i = _g++;
+			var lim = 4;
+			var list = this.getHoriLine(2 + this.seed.random(this.ymax - 2),0.05,0);
+			var _g2 = 0;
+			while(_g2 < list.length) {
+				var p = list[_g2];
+				++_g2;
+				if(this.model.h["" + p[0] + "," + p[1]] < 5) {
+					this.model.h["" + p[0] + "," + p[1]] += 1;
+				}
+			}
+		}
+		while(this.lvl >= 0 && this.seed.random(2) == 0) {
+			var m = 3;
+			var di = this.seed.random(4);
+			var sx = m + this.seed.random(14 - 2 * m);
+			var sy = m + this.seed.random(this.ymax - 2 * m);
+			while(true) {
+				var bl = this.model.h["" + sx + "," + sy];
+				if(sx >= 0 && sx < 14 && sy >= 0 && sy < this.ymax) {
+					this.model.h["" + sx + "," + sy] = null;
+					var d = Level.DIR[di];
+					sx += d[0];
+					sy += d[1];
+					if(this.seed.random(4) == 0) {
+						di = Main.sMod(di + (this.seed.random(2) * 2 - 1),4) | 0;
+					}
+				} else {
+					break;
+				}
+			}
+		}
+		var brd = this.seed.random(this.lvl + 1);
+		if(this.zid == 10 || this.zid == 11 || this.zid == 17) {
+			brd = 0;
+		}
+		if(brd > 0) {
+			var inc = 1;
+			if(brd > 2) {
+				++inc;
+			}
+			if(brd > 4) {
+				++inc;
+			}
+			var _g = 0;
+			while(_g < 14) {
+				var x = _g++;
+				var _g1 = 0;
+				var _g2 = this.ymax;
+				while(_g1 < _g2) {
+					var y = _g1++;
+					if(this.model.h["" + x + "," + y] < 5) {
+						var _g3 = 0;
+						var _g4 = Level.DIR;
+						while(_g3 < _g4.length) {
+							var d = _g4[_g3];
+							++_g3;
+							var nx = x + d[0];
+							var ny = y + d[1];
+							if(nx >= 0 && nx < 14 && ny >= 0 && ny < this.ymax + 1 && this.model.h["" + nx + "," + ny] == null) {
+								this.model.h["" + x + "," + y] = Math.min(this.model.h["" + x + "," + y] + inc,5) | 0;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		while(this.seed.random(3) == 0) {
+			var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1);
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = null;
+			}
+		}
+		while(this.lvl >= 1 && this.seed.random(3) == 0) {
+			var x = this.seed.random(14);
+			var y = this.seed.random(5);
+			this.model.h["" + x + "," + y] = 13;
+		}
+		if(this.wy < -40 && this.seed.random(4) == 0) {
+			var max = Math.min(this.seed.random(2 + Math.abs(this.wy) * 0.05 | 0),10) | 0;
+			this.genRandom(16,max);
+			this.flLure = true;
+		}
+		if(this.seed.random(this.proba[0]) == 0) {
+			var type = null;
+			if(this.seed.random(3) == 0) {
+				type = this.seed.random(2);
+			}
+			var hmin = Math.round(Math.max(3 - this.dst / 30,1));
+			var list = this.getHoriLine(3 + this.seed.random(this.ymax - 3),0.1,type,hmin + this.seed.random(2));
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = 17;
+			}
+		}
+		if(this.seed.random(this.proba[1]) == 0) {
+			var n = Math.min(Math.sqrt(this.dst * 0.25),20) | 0;
+			var max = n + this.seed.random(n);
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var i = _g++;
+				this.genCloud(17);
+			}
+		}
+		if(this.seed.random(this.proba[3]) == 0) {
+			var max = 0;
+			while(max % 10 == 0) max += this.seed.random(11);
+			this.genRandom(14,max,0);
+		}
+		if(this.seed.random(this.proba[6]) == 0) {
+			var max = 1 + this.seed.random(this.lvl + 1);
+			while(this.seed.random(5) == 0) max += this.seed.random(max);
+			this.genRandom(22,max,0);
+		}
+		if(this.seed.random(this.proba[7]) == 0) {
+			var max = 1 + this.seed.random(this.lvl);
+			this.genRandom(32,max,1);
+		}
+		if(this.seed.random(this.proba[10]) == 0) {
+			var max = 1 + this.seed.random(5);
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var i = _g++;
+				this.genCloud(48);
+			}
+			if(this.seed.random(8) == 0) {
+				var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1,null,2);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 48;
+				}
+			}
+		}
+		if(this.seed.random(this.proba[9]) == 0) {
+			var max = 1 + this.seed.random(6);
+			this.genRandom(47,max);
+		}
+		if(this.seed.random(this.proba[11]) == 0) {
+			var max = 1 + this.seed.random(Math.pow(this.dst,0.5) | 0);
+			this.genRandom(51,max);
+		}
+		while(this.seed.rand() * (Math.pow(this.dst,0.5) + 3) < 1) {
+			var max = 1 + this.seed.random(2);
+			this.genRandom(52,max);
+		}
+		while(this.seed.random(this.proba[12]) == 0) {
+			var max = 1 + this.seed.random(2);
+			this.genRandom(53,max);
+		}
+		if(this.zid == null) {
+			if(this.dst > 11 && (this.dst < 12 || this.seed.random(10) == 0)) {
+				var list = this.getHoriLine(this.ymax * 0.5 | 0,0.1);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 15;
+				}
+			}
+			var d = this.distances[5];
+			var lim = 15;
+			if(d < lim) {
+				var max = this.seed.random(((1 - d / lim) * 6 | 0) + 1);
+				this.genRandom(16,max);
+				this.flLure = true;
+			}
+			if(this.seed.random(this.proba[2]) == 0) {
+				var n = Math.min(Math.sqrt(this.dst * 0.25),10) | 0;
+				var max = n + this.seed.random(n);
+				this.genRandom(18,max,null,1);
+			}
+			if(this.seed.random(this.proba[4]) == 0) {
+				this.genRandom(19,6);
+			}
+			if(this.seed.random(this.proba[5]) == 0) {
+				var ym = Math.min(1 + this.dst * 0.15,this.ymax) | 0;
+				this.genRandom(20,1 + (Math.pow(this.seed.rand(),3) * 16 | 0),null,null,ym);
+				this.flLure = true;
+			}
+			if(this.seed.random(this.proba[8]) == 0) {
+				var max = 1 + this.seed.random(8);
+				var _g = 0;
+				var _g1 = max;
+				while(_g < _g1) {
+					var i = _g++;
+					var n = this.seed.random(2);
+					var ma = 5;
+					var x = this.seed.random(14 - ma);
+					var y = this.seed.random(this.ymax);
+					if(n == 0) {
+						x += ma;
+					}
+					var bl = this.model.h["" + x + "," + y];
+					if(this.model.h["" + x + "," + y] != null) {
+						this.model.h["" + x + "," + y] = 43 + n;
+					}
+				}
+			}
+			if(this.dst > 20 && this.seed.random(500) == 0) {
+				this.genRandom(46,1 + this.seed.random(2));
+				if(this.seed.random(100) == 0) {
+					this.genRandom(46,20);
+				}
+			}
+			if(this.dst > 30 && this.seed.random(300) == 0) {
+				var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1,null,2);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 50;
+				}
+			}
+			if(this.seed.random(this.proba[12]) == 0) {
+				this.genRandom(53,1 + this.seed.random(2));
+			}
+			if(this.seed.random(16) == 0 && this.dst > 50) {
+				this.genRandom(55,1 + this.seed.random(6));
+			}
+			if(this.seed.random(8) == 0 && this.distances[3] < 50) {
+				this.genRandom(54,1 + this.seed.random(4));
+			}
+		} else {
+			this.genZoneModif();
+		}
+		this.seed = new mt_OldRandom(this.wx * 10000 + this.wy);
+		var n = 1;
+		var lim = 1;
+		if(this.zid == 11) {
+			lim = 0;
+		}
+		if(this.zid == 4) {
+			lim = 0;
+		}
+		if(this.zid == 10) {
+			lim = 2;
+		}
+		if(this.zid == 23) {
+			lim = 8;
+		}
+		if(this.distances[10] < 2) {
+			lim = 3;
+		}
+		while(this.seed.random(n++) < lim) this.genBonusBlock(this.ymax);
+		if(this.flLure && this.dst > 130) {
+			if(this.seed.random(4) == 0) {
+				this.genRandom(42,1 + this.seed.random(20));
+			}
+			if(this.seed.random(8) == 0) {
+				var list = this.getHoriLine(this.seed.random(this.ymax),0.1,0);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 42;
+				}
+			}
+		}
+		if(flMirror) {
+			var mx = 7;
+			var _g = 0;
+			var _g1 = mx;
+			while(_g < _g1) {
+				var x = _g++;
+				var nx = 14 - (x + 1);
+				var _g2 = 0;
+				var _g3 = this.ymax;
+				while(_g2 < _g3) {
+					var y = _g2++;
+					var n = this.model.h["" + x + "," + y];
+					this.model.h["" + nx + "," + y] = n;
+					if(n == 43) {
+						this.model.h["" + nx + "," + y] = 44;
+					}
+					if(n == 44) {
+						this.model.h["" + nx + "," + y] = 43;
+					}
+				}
+			}
+		}
+		if(this.dst < 8) {
+			var crop = 1;
+			if(this.dst < 2) {
+				++crop;
+			}
+			if(this.dst < 1) {
+				++crop;
+			}
+			var _g = 0;
+			while(_g < 14) {
+				var x = _g++;
+				var _g1 = 0;
+				var _g2 = this.ymax;
+				while(_g1 < _g2) {
+					var y = _g1++;
+					if(x < crop || x >= 14 - crop || y < crop) {
+						this.model.h["" + x + "," + y] = null;
+					}
+				}
+			}
+		}
+		if(Math.max(Math.abs(this.wx),Math.abs(this.wy)) == 3) {
+			var list = this.getHoriLine(12,0.0);
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = 1;
+			}
+		}
+		if(this.item) {
+			this.insertItem();
+		}
+	}
+	,forceModel: function() {
+		this.model = new haxe_ds_StringMap();
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 0 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 1 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 2 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 3 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 4 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 5 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 6 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 7 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 8 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 9 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 10 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 11 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 12 + "," + y] = 0;
+		}
+		var _g = 0;
+		var _g1 = this.ymax;
+		while(_g < _g1) {
+			var y = _g++;
+			this.model.h["" + 13 + "," + y] = 0;
+		}
+	}
+	,getGoal: function() {
+		var obj = 0;
+		if(this.model.h["" + 0 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 0 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 1 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 2 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 3 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 4 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 5 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 6 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 7 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 8 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 9 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 10 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 11 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 12 + "," + 22] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 0] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 1] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 2] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 3] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 4] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 5] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 6] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 7] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 8] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 9] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 10] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 11] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 12] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 13] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 14] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 15] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 16] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 17] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 18] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 19] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 20] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 21] == 0) {
+			++obj;
+		}
+		if(this.model.h["" + 13 + "," + 22] == 0) {
+			++obj;
+		}
+		return obj;
+	}
+	,isModelOpen: function(obj) {
+		var sx = null;
+		var sy = this.ymax - 1;
+		var grid = new haxe_ds_StringMap();
+		if(sx == null && Level.isSoft(this.model.h["" + 0 + "," + sy])) {
+			sx = 0;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 1 + "," + sy])) {
+			sx = 1;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 2 + "," + sy])) {
+			sx = 2;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 3 + "," + sy])) {
+			sx = 3;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 4 + "," + sy])) {
+			sx = 4;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 5 + "," + sy])) {
+			sx = 5;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 6 + "," + sy])) {
+			sx = 6;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 7 + "," + sy])) {
+			sx = 7;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 8 + "," + sy])) {
+			sx = 8;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 9 + "," + sy])) {
+			sx = 9;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 10 + "," + sy])) {
+			sx = 10;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 11 + "," + sy])) {
+			sx = 11;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 12 + "," + sy])) {
+			sx = 12;
+		}
+		if(sx == null && Level.isSoft(this.model.h["" + 13 + "," + sy])) {
+			sx = 13;
+		}
+		if(sx == null) {
+			return false;
+		}
+		var n = this.getPath(sx,sy,grid,0);
+		return n == obj;
+	}
+	,getPath: function(x,y,grid,profondeur) {
+		if(profondeur == 240) {
+			return 0;
+		}
+		var n = 0;
+		grid.h["" + x + "," + y] = true;
+		if(this.model.h["" + x + "," + y] == 0) {
+			++n;
+		}
+		var _g = 0;
+		var _g1 = Level.DIR;
+		while(_g < _g1.length) {
+			var d = _g1[_g];
+			++_g;
+			var nx = x + d[0];
+			var ny = y + d[1];
+			if(grid.h["" + nx + "," + ny] == null && nx >= 0 && nx < 14 && ny >= 0 && ny < this.ymax + 1) {
+				if(Level.isSoft(this.model.h["" + x + "," + y])) {
+					n += this.getPath(nx,ny,grid,profondeur + 1);
+				}
+			}
+		}
+		return n;
+	}
+	,genStruct: function() {
+		this.model = new haxe_ds_StringMap();
+		var _g = 0;
+		while(_g < 14) {
+			var x = _g++;
+			var _g1 = 0;
+			while(_g1 < 23) {
+				var y = _g1++;
+				var n = this.struct.h["" + x + "," + y];
+				this.model.h["" + x + "," + y] = n;
+			}
+		}
+	}
+	,getHoriLine: function(sy,turnCoef,type,hole) {
+		var hx = null;
+		if(hole != null) {
+			hx = this.seed.random(14 - hole);
+		}
+		var list = [];
+		var y = sy;
+		var _g = 0;
+		while(_g < 14) {
+			var x = _g++;
+			if(hx == null || (x < hx || x >= hx + hole)) {
+				if(type == null) {
+					list.push([x,y]);
+				} else {
+					var prec = this.model.h["" + x + "," + y];
+					if(prec != null) {
+						if(type == 0) {
+							list.push([x,y]);
+						}
+					} else if(type == 1) {
+						list.push([x,y]);
+					}
+				}
+				if(this.seed.rand() < turnCoef) {
+					var sens = this.seed.random(2) * 2 - 1;
+					var max = 1 + this.seed.random(8);
+					var _g1 = 0;
+					var _g2 = max;
+					while(_g1 < _g2) {
+						var i = _g1++;
+						y += sens;
+						if(y < this.ymax && y >= 0) {
+							if(type == null) {
+								list.push([x,y]);
+							} else {
+								var prec1 = this.model.h["" + x + "," + y];
+								if(prec1 != null) {
+									if(type == 0) {
+										list.push([x,y]);
+									}
+								} else if(type == 1) {
+									list.push([x,y]);
+								}
+							}
+						} else {
+							y -= sens;
+							break;
+						}
+					}
+				}
+			}
+		}
+		return list;
+	}
+	,genRandom: function(type,max,drawType,ma,ym) {
+		if(ym == null) {
+			ym = this.ymax;
+		}
+		if(ma == null) {
+			ma = 0;
+		}
+		var _g = 0;
+		var _g1 = max;
+		while(_g < _g1) {
+			var i = _g++;
+			var x = ma + this.seed.random(14 - 2 * ma);
+			var y = ma + this.seed.random(ym - 2 * ma);
+			var n = this.model.h["" + x + "," + y];
+			if(drawType == null) {
+				this.model.h["" + x + "," + y] = type;
+			} else {
+				switch(drawType) {
+				case 0:
+					if(n != null) {
+						this.model.h["" + x + "," + y] = type;
+					}
+					break;
+				case 1:
+					if(n == null) {
+						this.model.h["" + x + "," + y] = type;
+					}
+					break;
+				default:
+					this.model.h["" + x + "," + y] = type;
+				}
+			}
+		}
+	}
+	,genCloud: function(type) {
+		var x = this.seed.random(14);
+		var y = this.seed.random(this.ymax);
+		var d = Level.DIR[this.seed.random(4)];
+		var lmax = 2 + this.seed.random(4);
+		var _g = 0;
+		var _g1 = lmax;
+		while(_g < _g1) {
+			var n = _g++;
+			var nx = x + d[0] * n;
+			var ny = y + d[1] * n;
+			if(this.isOut(nx,ny)) {
+				break;
+			}
+			this.model.h["" + nx + "," + ny] = type;
+		}
+	}
+	,isOut: function(x,y) {
+		if(!(x < 0 || x >= 14 || y < 0)) {
+			return y >= this.ymax;
+		} else {
+			return true;
+		}
+	}
+	,genZoneModif: function() {
+		switch(this.zid) {
+		case 0:
+			this.genRandom(22,10);
+			break;
+		case 1:
+			var list = this.getHoriLine(this.ymax * 0.5 | 0,0.1,0);
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = 15;
+			}
+			break;
+		case 2:
+			if(this.seed.random(4) == 0) {
+				var list = this.getHoriLine(this.ymax * 0.5 | 0,0.1,0);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 14;
+				}
+			}
+			break;
+		case 3:
+			if(this.seed.random(2) == 0) {
+				this.genRandom(54,1 + this.seed.random(16));
+			}
+			if(this.seed.random(8) == 0) {
+				var list = this.getHoriLine(this.ymax * 0.5 | 0,0.1,0);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 54;
+				}
+			}
+			break;
+		case 4:
+			break;
+		case 5:
+			var max = 2 + this.seed.random(12);
+			this.genRandom(16,max);
+			this.flLure = true;
+			break;
+		case 6:
+			var max = 1;
+			if(this.distances[6] < 1.5) {
+				++max;
+			}
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var i = _g++;
+				var list = this.getHoriLine(4 + this.seed.random(this.ymax - 8),0.15);
+				var _g2 = 0;
+				while(_g2 < list.length) {
+					var p = list[_g2];
+					++_g2;
+					this.model.h["" + p[0] + "," + p[1]] = 19;
+				}
+			}
+			break;
+		case 7:
+			this.genRandom(28,1 + this.seed.random(3));
+			if(this.seed.random(5) == 0) {
+				this.genRandom(25,1 + this.seed.random(5));
+			}
+			break;
+		case 8:
+			this.genRandom(23,1 + this.seed.random(2));
+			if(this.seed.random(3) == 0) {
+				this.genRandom(45,1 + this.seed.random(4));
+			}
+			break;
+		case 9:
+			var c = 1 - this.distances[9] / ZoneInfo.list[9].pos[2];
+			var max = 1 + c * 8 | 0;
+			this.genRandom(32,max);
+			break;
+		case 10:
+			var list = this.getHoriLine(2,0.2,0);
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = 4;
+			}
+			var list = this.getHoriLine(7,0.2,0);
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = 4;
+			}
+			var list = this.getHoriLine(12,0.2,0);
+			var _g = 0;
+			while(_g < list.length) {
+				var p = list[_g];
+				++_g;
+				this.model.h["" + p[0] + "," + p[1]] = 4;
+			}
+			if(this.seed.random(4) == 0) {
+				this.genRandom(45,3 + this.seed.random(12));
+			}
+			break;
+		case 11:
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			this.genCloud(17);
+			break;
+		case 12:
+			this.genRandom(45,1 + this.seed.random(24));
+			break;
+		case 14:
+			this.genRandom(52,1);
+			this.genRandom(53,1 + this.seed.random(2));
+			if(this.seed.random(20) == 0) {
+				var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1,null,2);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 53;
+				}
+			}
+			break;
+		case 15:
+			if(this.seed.random(2) == 0) {
+				var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1,null,2);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 51;
+				}
+			}
+			while(this.seed.random(2) == 0) {
+				var max = 1 + this.seed.random(6);
+				this.genRandom(51,max);
+			}
+			break;
+		case 16:
+			var n = 1;
+			while(this.seed.rand() * n < 1) {
+				var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1,null,2);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 50;
+				}
+				n *= 2;
+			}
+			if(this.seed.random(2) == 0) {
+				this.genRandom(26,1 + this.seed.random(3));
+			}
+			break;
+		case 17:
+			this.genRandom(55,1 + this.seed.random(16));
+			break;
+		case 18:
+			var n = 1;
+			while(this.seed.rand() * n < 3) {
+				this.genCloud(17);
+				++n;
+			}
+			break;
+		case 19:
+			if(this.seed.random(2) == 0) {
+				var list = this.getHoriLine(1 + this.seed.random(this.ymax - 2),0.1,null,6);
+				var _g = 0;
+				while(_g < list.length) {
+					var p = list[_g];
+					++_g;
+					this.model.h["" + p[0] + "," + p[1]] = 53;
+				}
+			}
+			break;
+		case 20:
+			var max = (8 - this.distances[20]) * 2 | 0;
+			this.genRandom(16,max);
+			this.genRandom(51,max);
+			if(this.seed.random(2) == 0) {
+				this.genRandom(42,max);
+			}
+			break;
+		case 21:
+			var max = 10 + this.seed.random(10);
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var i = _g++;
+				this.genCloud(50);
+			}
+			var max = 1 + this.seed.random(4);
+			var sens = -1;
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var n = _g++;
+				var x = 0 - sens * this.seed.random(4);
+				var y = this.seed.random(this.ymax);
+				var inlarr_0 = 44;
+				var inlarr_1 = 43;
+				this.model.h["" + x + "," + y] = inlarr_0;
+			}
+			var sens = 1;
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var n = _g++;
+				var x = 13 - sens * this.seed.random(4);
+				var y = this.seed.random(this.ymax);
+				var inlarr_0 = 44;
+				var inlarr_1 = 43;
+				this.model.h["" + x + "," + y] = inlarr_1;
+			}
+			this.searchAndReplace(17,4);
+			break;
+		case 22:
+			var max = (3 - this.distances[22]) * 3 | 0;
+			var _g = 0;
+			var _g1 = max;
+			while(_g < _g1) {
+				var i = _g++;
+				this.genCloud(16);
+			}
+			this.searchAndReplace(17,15);
+			this.searchAndReplace(11,11);
+			this.searchAndReplace(12,11);
+			this.searchAndReplace(13,11);
+			this.searchAndReplace(10,11);
+			this.searchAndReplace(1,15);
+			this.searchAndReplace(2,15);
+			this.searchAndReplace(3,15);
+			this.searchAndReplace(4,15);
+			this.searchAndReplace(5,15);
+			break;
+		case 23:
+			var _g = 0;
+			while(_g < 14) {
+				var x = _g++;
+				var _g1 = 0;
+				while(_g1 < 23) {
+					var y = _g1++;
+					if(this.model.h["" + x + "," + y] != null) {
+						this.model.h["" + x + "," + y] = 0;
+					}
+				}
+			}
+			break;
+		}
+	}
+	,searchAndReplace: function(o,n) {
+		var _g = 0;
+		while(_g < 14) {
+			var x = _g++;
+			var _g1 = 0;
+			while(_g1 < 23) {
+				var y = _g1++;
+				if(this.model.h["" + x + "," + y] == o) {
+					this.model.h["" + x + "," + y] = n;
+				}
+			}
+		}
+	}
+	,genBonusBlock: function(ymax) {
+		var max = Math.min(2 + this.lvl,4) | 0;
+		var mx = 1 + this.seed.random(max);
+		var my = 1 + this.seed.random(max);
+		var sx = this.seed.random(14 - mx);
+		var sy = this.seed.random(ymax - my);
+		var po = 0;
+		var bluePower = Math.max(2.5 - this.dst * 0.004,1);
+		var pinkPower = Math.max(3.5 - this.dst * 0.004,2);
+		if(this.seed.random(Math.pow(mx + my + 1,bluePower) | 0) == 0) {
+			po = 1;
+		}
+		if(this.seed.random(Math.pow(mx + my + 1,pinkPower) | 0) == 0) {
+			po = 2;
+		}
+		var type = 10 + po;
+		var _g = 0;
+		var _g1 = mx;
+		while(_g < _g1) {
+			var x = _g++;
+			var _g2 = 0;
+			var _g3 = my;
+			while(_g2 < _g3) {
+				var y = _g2++;
+				this.model.h["" + (sx + x) + "," + (sy + y)] = type;
+			}
+		}
+	}
+	,insertItem: function() {
+		var ma = 4;
+		var x = ma + this.seed.random(14 - 2 * ma);
+		var y = this.seed.random(3);
+		this.model.h["" + x + "," + y] = 21;
+	}
+	,getBlockTypeStats: function() {
+		var _g = new haxe_ds_IntMap();
+		var t = 10;
+		_g.h[t] = { count : 0};
+		var t = 11;
+		_g.h[t] = { count : 0};
+		var t = 12;
+		_g.h[t] = { count : 0};
+		var t = 47;
+		_g.h[t] = { count : 0};
+		var t = 52;
+		_g.h[t] = { count : 0};
+		this.blockStats = _g;
+		this.mineralCount = 0;
+		var _g = 0;
+		while(_g < 14) {
+			var x = _g++;
+			var _g1 = 0;
+			while(_g1 < 23) {
+				var y = _g1++;
+				switch(this.model.h["" + x + "," + y]) {
+				case 10:
+					var fh = this.blockStats.h[10];
+					fh.count++;
+					this.mineralCount++;
+					break;
+				case 11:
+					var fh1 = this.blockStats.h[11];
+					fh1.count++;
+					this.mineralCount += 10;
+					break;
+				case 12:
+					var fh2 = this.blockStats.h[12];
+					fh2.count++;
+					this.mineralCount += 25;
+					break;
+				case 47:
+					var fh3 = this.blockStats.h[47];
+					fh3.count++;
+					break;
+				case 52:
+					var fh4 = this.blockStats.h[52];
+					fh4.count++;
+					break;
+				}
+			}
+		}
+	}
+};
+var Main = $hx_exports["Main"] = function() { };
+Main.__name__ = true;
+Main.main = function() {
+	Main.app = new PIXI.Application({ width : 820, height : 738});
+	window.document.getElementById("map_data").appendChild(Main.app.view);
+	Main.textures = new haxe_ds_StringMap();
+	var preload = ["mcLuz","Star","wurmhole","merchant","pid","mapIcons","mcShape"];
+	var _g = 0;
+	var _g1 = ZoneInfo.list.length;
+	while(_g < _g1) {
+		var i = _g++;
+		preload.push("planet" + i);
+	}
+	var result = new Array(preload.length);
+	var _g = 0;
+	var _g1 = preload.length;
+	while(_g < _g1) {
+		var i = _g++;
+		var n = [preload[i]];
+		var tmp = PIXI.Texture.fromURL("https://3plus4i.github.io/ABMap/images/sprites/" + n[0] + ".png");
+		var tmp1 = (function(n) {
+			return function(t) {
+				return { name : n[0], texture : t};
+			};
+		})(n);
+		result[i] = tmp.then(tmp1);
+	}
+	Promise.all(result).then(function(loaded) {
+		var _g = 0;
+		while(_g < loaded.length) {
+			var t = loaded[_g];
+			++_g;
+			Main.textures.h[t.name] = t.texture;
+		}
+		Main.init();
+	});
+};
+Main.init = function() {
+	Map.filerItems();
+	Main.map = new Map(0,0);
+	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
+	Main.map.getLevelMap();
+	Main.app.stage.addChild(Main.map.spaceLayer);
+};
+Main.close_welcome = function() {
+	window.document.getElementById("welcome").style.display = "none";
+};
+Main.objToCol = function(o) {
+	return o.r << 16 | o.g << 8 | o.b;
+};
+Main.sMod = function(n,mod) {
+	if(mod == 0 || mod == null || n == null) {
+		return null;
+	}
+	while(n >= mod) n -= mod;
+	while(n < 0) n += mod;
+	return n;
+};
+Main.hMod = function(n,mod) {
+	if(mod == 0 || mod == null || n == null) {
+		return null;
+	}
+	while(n > mod) n -= mod * 2;
+	while(n < -mod) n += mod * 2;
+	return n;
+};
+Main.draw = function(onto,object,matrix) {
+	Main.app.renderer.render(object,{ renderTexture : onto, clear : false, transform : matrix});
+};
+Main.getPixel = function(pixels,x,y,width) {
+	var pIndex = (y * width + x) * 4;
+	return pixels[pIndex] << 16 | pixels[pIndex + 1] << 8 | pixels[pIndex + 2];
+};
 var Star = function(texture) {
 	PIXI.Sprite.call(this,texture);
 };
@@ -14,30 +2266,33 @@ Star.__name__ = true;
 Star.__super__ = PIXI.Sprite;
 Star.prototype = $extend(PIXI.Sprite.prototype,{
 });
-var ABMap = function(x,y) {
+var Map = function(x,y) {
 	this.CY = 0;
 	this.CX = 0;
 	this.size = 20;
 	this.XMAX = 2 * this.size + 1;
 	this.YMAX = this.XMAX;
-	ABMap.WW = this.XMAX * ABMap.BW;
-	ABMap.HH = this.YMAX * ABMap.BH;
+	Map.WW = this.XMAX * Map.BW;
+	Map.HH = this.YMAX * Map.BH;
 	this.CX = x;
 	this.CY = y;
-	ABMap.SX = this.CX - this.size;
-	ABMap.SY = this.CY - this.size;
-	this.frame = new PIXI.Rectangle(0,0,ABMap.BW,ABMap.BH);
+	Map.SX = this.CX - this.size;
+	Map.SY = this.CY - this.size;
+	this.levelTable = new haxe_ds_StringMap();
+	this.frame = new PIXI.Rectangle(0,0,Map.BW,Map.BH);
+	this.spaceLayer = new PIXI.Graphics();
+	this.spaceLayer.alpha = 0.5;
 	this.seedTable = new haxe_ds_StringMap();
 	var _g = 0;
-	var _g1 = this.XMAX + ABMap.ZONE_MARGIN * 2;
+	var _g1 = this.XMAX + Map.ZONE_MARGIN * 2;
 	while(_g < _g1) {
 		var x = _g++;
 		var _g2 = 0;
-		var _g3 = this.YMAX + ABMap.ZONE_MARGIN * 2;
+		var _g3 = this.YMAX + Map.ZONE_MARGIN * 2;
 		while(_g2 < _g3) {
 			var y = _g2++;
-			var px = x + ABMap.SX - ABMap.ZONE_MARGIN;
-			var py = y + ABMap.SY - ABMap.ZONE_MARGIN;
+			var px = x + Map.SX - Map.ZONE_MARGIN;
+			var py = y + Map.SY - Map.ZONE_MARGIN;
 			var n = px * (1000 + py) + py | 0;
 			var _this = this.seedTable;
 			var value = new Random(n);
@@ -60,42 +2315,42 @@ var ABMap = function(x,y) {
 			while(_g2 < _g3.length) {
 				var p = _g3[_g2];
 				++_g2;
-				var x = p[0] - ABMap.SX;
-				var y = p[1] - ABMap.SY;
+				var x = p[0] - Map.SX;
+				var y = p[1] - Map.SY;
 				this.zoneTable.h["" + x + "," + y] = id;
 			}
 		}
 		++id;
 	}
-	this.bmpBg = PIXI.RenderTexture.create(ABMap.WW,ABMap.HH);
+	this.bmpBg = PIXI.RenderTexture.create(Map.WW,Map.HH);
 	var base = new PIXI.Graphics();
 	base.beginFill(Main.COL_SPACE);
-	base.drawRect(0,0,ABMap.WW,ABMap.HH);
+	base.drawRect(0,0,Map.WW,Map.HH);
 	Main.draw(this.bmpBg,base,new PIXI.Matrix());
 	var stars = [];
 	var brushLight = PIXI.Sprite.from(Main.textures.h["mcLuz"]);
 	brushLight.anchor.set(0.5,0.5);
 	brushLight.blendMode = PIXI.BLEND_MODES.ADD;
 	var _g = 0;
-	var _g1 = this.XMAX + 2 * ABMap.ZONE_MARGIN;
+	var _g1 = this.XMAX + 2 * Map.ZONE_MARGIN;
 	while(_g < _g1) {
 		var px = _g++;
 		var _g2 = 0;
-		var _g3 = this.YMAX + 2 * ABMap.ZONE_MARGIN;
+		var _g3 = this.YMAX + 2 * Map.ZONE_MARGIN;
 		while(_g2 < _g3) {
 			var py = _g2++;
-			var x = px - ABMap.ZONE_MARGIN;
-			var y = py - ABMap.ZONE_MARGIN;
+			var x = px - Map.ZONE_MARGIN;
+			var y = py - Map.ZONE_MARGIN;
 			x -= 5;
 			var sc = 5;
-			var seed = this.seedTable.h["" + (x + ABMap.ZONE_MARGIN) + "," + (y + ABMap.ZONE_MARGIN)];
+			var seed = this.seedTable.h["" + (x + Map.ZONE_MARGIN) + "," + (y + Map.ZONE_MARGIN)];
 			if(seed != null && seed.random(70) == 0) {
 				var bi = 5;
 				var ri = 90;
 				var o = { r : bi + seed.random(ri), g : bi + seed.random(ri), b : bi + seed.random(ri)};
 				var m = new PIXI.Matrix();
 				m.scale((0.5 + seed.rand()) * sc,(0.5 + seed.rand()) * sc);
-				m.translate(x * ABMap.BW,y * ABMap.BH);
+				m.translate(x * Map.BW,y * Map.BH);
 				brushLight.tint = Main.objToCol(o);
 				Main.draw(this.bmpBg,brushLight,m);
 			}
@@ -105,7 +2360,7 @@ var ABMap = function(x,y) {
 				var _g5 = max;
 				while(_g4 < _g5) {
 					var i = _g4++;
-					stars.push([(x + seed.rand()) * ABMap.BW,(y + seed.rand()) * ABMap.BH,0.2 + seed.rand() * 0.3]);
+					stars.push([(x + seed.rand()) * Map.BW,(y + seed.rand()) * Map.BH,0.2 + seed.rand() * 0.3]);
 				}
 			}
 		}
@@ -131,7 +2386,7 @@ var ABMap = function(x,y) {
 		var brush = PIXI.Sprite.from(Main.textures.h["planet" + zone.id]);
 		brush.anchor.set(0.5);
 		var m = new PIXI.Matrix();
-		m.translate((zi.pos[0] - ABMap.SX) * ABMap.BW,(zi.pos[1] - ABMap.SY) * ABMap.BH);
+		m.translate((zi.pos[0] - Map.SX) * Map.BW,(zi.pos[1] - Map.SY) * Map.BH);
 		Main.draw(this.bmpBg,brush,m);
 	}
 	var shop = PIXI.Sprite.from(Main.textures.h["merchant"]);
@@ -143,13 +2398,13 @@ var ABMap = function(x,y) {
 		var _g3 = this.YMAX;
 		while(_g2 < _g3) {
 			var y = _g2++;
-			var wx = ABMap.SX + x;
-			var wy = ABMap.SY + y;
+			var wx = Map.SX + x;
+			var wy = Map.SY + y;
 			var dst = Math.sqrt(wx * wx + wy * wy);
-			var seed = this.seedTable.h["" + (x + ABMap.ZONE_MARGIN) + "," + (y + ABMap.ZONE_MARGIN)];
+			var seed = this.seedTable.h["" + (x + Map.ZONE_MARGIN) + "," + (y + Map.ZONE_MARGIN)];
 			if(seed.random(40 + Math.pow(dst,1.4) | 0) == 0) {
 				var m = new PIXI.Matrix();
-				m.translate(x * ABMap.BW,y * ABMap.BH);
+				m.translate(x * Map.BW,y * Map.BH);
 				Main.draw(this.bmpBg,shop,m);
 			}
 		}
@@ -232,9 +2487,9 @@ var ABMap = function(x,y) {
 	while(_g < 170) {
 		var i = _g++;
 		var item = MissionInfo.ITEMS[i];
-		if(item.x > ABMap.SX && item.x < ABMap.SX + this.XMAX && item.y > ABMap.SY && item.y < ABMap.SY + this.YMAX) {
+		if(item.x > Map.SX && item.x < Map.SX + this.XMAX && item.y > Map.SY && item.y < Map.SY + this.YMAX) {
 			var m = new PIXI.Matrix();
-			m.translate((item.x - ABMap.SX) * ABMap.BW,(item.y - ABMap.SY) * ABMap.BH);
+			m.translate((item.x - Map.SX) * Map.BW,(item.y - Map.SY) * Map.BH);
 			Main.draw(this.bmpBg,pid,m);
 		}
 	}
@@ -247,7 +2502,7 @@ var ABMap = function(x,y) {
 	while(_g < _g1) {
 		var x = _g++;
 		if((x + xOffset) % 5 > 1) {
-			bmp.drawRect(x * ABMap.BW,0,1,ABMap.HH);
+			bmp.drawRect(x * Map.BW,0,1,Map.HH);
 		}
 	}
 	var _g = 0;
@@ -255,7 +2510,7 @@ var ABMap = function(x,y) {
 	while(_g < _g1) {
 		var y = _g++;
 		if((y + yOffset) % 5 > 1) {
-			bmp.drawRect(0,y * ABMap.BH,ABMap.WW,1);
+			bmp.drawRect(0,y * Map.BH,Map.WW,1);
 		}
 	}
 	bmp.beginFill(16777215,0.3);
@@ -264,7 +2519,7 @@ var ABMap = function(x,y) {
 	while(_g < _g1) {
 		var x = _g++;
 		if((x + xOffset) % 5 <= 1) {
-			bmp.drawRect(x * ABMap.BW,0,1,ABMap.HH);
+			bmp.drawRect(x * Map.BW,0,1,Map.HH);
 		}
 	}
 	var _g = 0;
@@ -272,21 +2527,125 @@ var ABMap = function(x,y) {
 	while(_g < _g1) {
 		var y = _g++;
 		if((y + yOffset) % 5 <= 1) {
-			bmp.drawRect(0,y * ABMap.BH,ABMap.WW,1);
+			bmp.drawRect(0,y * Map.BH,Map.WW,1);
 		}
 	}
 	Main.draw(this.bmpBg,bmp,new PIXI.Matrix());
 };
-ABMap.__name__ = true;
-ABMap.prototype = {
-	isZoneIn: function(pos) {
+Map.__name__ = true;
+Map.filerItems = function() {
+	Map.itemList = [];
+	var _g = 0;
+	var _g1 = MissionInfo.LIST;
+	while(_g < _g1.length) {
+		var mission = _g1[_g];
+		++_g;
+		var _g2 = 0;
+		var _g3 = mission.startItem;
+		while(_g2 < _g3.length) {
+			var item = _g3[_g2];
+			++_g2;
+			if(item[0] > 0) {
+				if(item[1] == 1 || item[1] == 5) {
+					Map.itemList.push(item[0] | 0);
+				}
+			}
+		}
+		var _g4 = 0;
+		var _g5 = mission.endItem;
+		while(_g4 < _g5.length) {
+			var item1 = _g5[_g4];
+			++_g4;
+			if(item1[0] > 0) {
+				if(item1[1] == 1 || item1[1] == 5) {
+					Map.itemList.push(item1[0] | 0);
+				}
+			}
+		}
+	}
+};
+Map.prototype = {
+	getLevelMap: function() {
+		var _g = 0;
+		var _g1 = this.XMAX;
+		while(_g < _g1) {
+			var x = _g++;
+			var _g2 = 0;
+			var _g3 = this.YMAX;
+			while(_g2 < _g3) {
+				var y = _g2++;
+				var level = new Level(x + Map.SX,y + Map.SY,this.zoneTable.h["" + x + "," + y]);
+				this.levelTable.h["" + x + "," + y] = level;
+				level.getBlockTypeStats();
+				var _g4 = level.mineralCount;
+				if(_g4 == 0) {
+					this.spaceLayer.beginFill(16711680);
+				} else {
+					var v = _g4;
+					if(v < 5) {
+						this.spaceLayer.beginFill(16744192);
+					} else {
+						var v1 = _g4;
+						if(v1 < 10) {
+							this.spaceLayer.beginFill(16776960);
+						} else {
+							var v2 = _g4;
+							if(v2 < 25) {
+								this.spaceLayer.beginFill(65280);
+							} else {
+								var v3 = _g4;
+								if(v3 < 50) {
+									this.spaceLayer.beginFill(65407);
+								} else {
+									var v4 = _g4;
+									if(v4 < 100) {
+										this.spaceLayer.beginFill(65535);
+									} else {
+										var v5 = _g4;
+										if(v5 < 150) {
+											this.spaceLayer.beginFill(43775);
+										} else {
+											var v6 = _g4;
+											if(v6 < 200) {
+												this.spaceLayer.beginFill(22015);
+											} else {
+												var v7 = _g4;
+												if(v7 < 300) {
+													this.spaceLayer.beginFill(255);
+												} else {
+													var v8 = _g4;
+													if(v8 < 400) {
+														this.spaceLayer.beginFill(4129023);
+													} else {
+														var v9 = _g4;
+														if(v9 >= 400) {
+															this.spaceLayer.beginFill(8323327);
+														} else {
+															this.spaceLayer.beginFill(0,0);
+															console.log("src/Map.hx:281:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + Map.SX) + "][" + (y + Map.SY) + "]");
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				this.spaceLayer.drawRect(x * Map.BW,y * Map.BH,Map.BW,Map.BH);
+			}
+		}
+	}
+	,isZoneIn: function(pos) {
 		if(pos[2] == 0) {
 			return false;
 		}
-		var xMin = ABMap.SX;
-		var yMin = ABMap.SY;
-		var XMAX = ABMap.SX + this.XMAX;
-		var YMAX = ABMap.SY + this.YMAX;
+		var xMin = Map.SX;
+		var yMin = Map.SY;
+		var XMAX = Map.SX + this.XMAX;
+		var YMAX = Map.SY + this.YMAX;
 		if(pos.length == 3) {
 			xMin -= pos[2];
 			yMin -= pos[2];
@@ -306,65 +2665,15 @@ ABMap.prototype = {
 	}
 	,drawIcon: function(id,sIndex) {
 		var item = MissionInfo.ITEMS[id];
-		if(item.x > ABMap.SX && item.x < ABMap.SX + this.XMAX && item.y > ABMap.SY && item.y < ABMap.SY + this.YMAX) {
-			this.frame.y = sIndex * ABMap.BH;
+		if(item.x > Map.SX && item.x < Map.SX + this.XMAX && item.y > Map.SY && item.y < Map.SY + this.YMAX) {
+			this.frame.y = sIndex * Map.BH;
 			this.itemTex.frame = this.frame;
 			var icon = PIXI.Sprite.from(this.itemTex);
 			var m = new PIXI.Matrix();
-			m.translate((item.x - ABMap.SX) * ABMap.BW,(item.y - ABMap.SY) * ABMap.BH);
+			m.translate((item.x - Map.SX) * Map.BW,(item.y - Map.SY) * Map.BH);
 			Main.draw(this.bmpBg,icon,m);
 		}
 	}
-};
-var Main = $hx_exports["Main"] = function() { };
-Main.__name__ = true;
-Main.main = function() {
-	Main.app = new PIXI.Application({ width : 820, height : 738});
-	window.document.getElementById("map_data").appendChild(Main.app.view);
-	Main.textures = new haxe_ds_StringMap();
-	var preload = ["mcLuz","Star","merchant","pid","mapIcons"];
-	var _g = 0;
-	var _g1 = ZoneInfo.list.length;
-	while(_g < _g1) {
-		var i = _g++;
-		preload.push("planet" + i);
-	}
-	var result = new Array(preload.length);
-	var _g = 0;
-	var _g1 = preload.length;
-	while(_g < _g1) {
-		var i = _g++;
-		var n = [preload[i]];
-		var tmp = PIXI.Texture.fromURL("https://3plus4i.github.io/ABMap/images/sprites/" + n[0] + ".png");
-		var tmp1 = (function(n) {
-			return function(t) {
-				return { name : n[0], texture : t};
-			};
-		})(n);
-		result[i] = tmp.then(tmp1);
-	}
-	Promise.all(result).then(function(loaded) {
-		var _g = 0;
-		while(_g < loaded.length) {
-			var t = loaded[_g];
-			++_g;
-			Main.textures.h[t.name] = t.texture;
-		}
-		Main.init();
-	});
-};
-Main.init = function() {
-	Main.map = new ABMap(0,0);
-	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
-};
-Main.close_welcome = function() {
-	window.document.getElementById("welcome").style.display = "none";
-};
-Main.draw = function(onto,object,matrix) {
-	Main.app.renderer.render(object,{ renderTexture : onto, clear : false, transform : matrix});
-};
-Main.objToCol = function(o) {
-	return o.r << 16 | o.g << 8 | o.b;
 };
 Math.__name__ = true;
 var ZoneInfo = function() { };
@@ -588,6 +2897,34 @@ MissionInfo.initFonction = function() {
 MissionInfo.get = function(id) {
 	return MissionInfo.LIST[id];
 };
+var Molecule = function() { };
+Molecule.__name__ = true;
+Molecule.getRandomMolType = function(seed) {
+	if(Molecule.SUM == 0) {
+		var _g = 0;
+		var _g1 = Molecule.INFOS;
+		while(_g < _g1.length) {
+			var o = _g1[_g];
+			++_g;
+			Molecule.SUM += o.pb * 10;
+		}
+	}
+	var rnd = seed.random(Molecule.SUM);
+	var sum = 0;
+	var id = 0;
+	var _g = 0;
+	var _g1 = Molecule.INFOS;
+	while(_g < _g1.length) {
+		var o = _g1[_g];
+		++_g;
+		sum += o.pb * 10 | 0;
+		if(sum > rnd) {
+			return id;
+		}
+		++id;
+	}
+	return null;
+};
 var Random = function(s) {
 	this.seed = s;
 };
@@ -635,6 +2972,10 @@ haxe_ValueException.__name__ = true;
 haxe_ValueException.__super__ = haxe_Exception;
 haxe_ValueException.prototype = $extend(haxe_Exception.prototype,{
 });
+var haxe_ds_IntMap = function() {
+	this.h = { };
+};
+haxe_ds_IntMap.__name__ = true;
 var haxe_ds_StringMap = function() {
 	this.h = Object.create(null);
 };
@@ -814,14 +3155,63 @@ mt_Rand.prototype = {
 String.__name__ = true;
 Array.__name__ = true;
 js_Boot.__toStr = ({ }).toString;
-ABMap.BW = 20;
-ABMap.BH = 18;
-ABMap.ZONE_MARGIN = 10;
-ABMap.WW = 0;
-ABMap.HH = 0;
-ABMap.SX = 0;
-ABMap.SY = 0;
+Level.NEVER = 50000;
+Level.PB_STEEL_BAR = 0;
+Level.PB_STEEL_CLOUD = 1;
+Level.PB_PUSHER = 2;
+Level.PB_BOOM = 3;
+Level.PB_JUMPER = 4;
+Level.PB_STORM = 5;
+Level.PB_CAGE = 6;
+Level.PB_GENERATOR = 7;
+Level.PB_DRAGON = 8;
+Level.PB_MISSILE = 9;
+Level.PB_DOOR = 10;
+Level.PB_KILL = 11;
+Level.PB_DEATH = 12;
+Level.MIN_GREEN = 1;
+Level.MIN_BLUE = 5;
+Level.MIN_PINK = 25;
+Level.BONUS_MAX = 3;
+Level.MOLECULE_MAX = 10;
+Level.BONUS = 10;
+Level.BONUS2 = 11;
+Level.BONUS3 = 12;
+Level.BALL = 13;
+Level.BOOM = 14;
+Level.SPACE = 15;
+Level.REDUC = 16;
+Level.STEEL = 17;
+Level.PUSHER = 18;
+Level.JUMPER = 19;
+Level.STORM = 20;
+Level.ITEM = 21;
+Level.CAGE = 22;
+Level.GENERATOR = 32;
+Level.LURE = 42;
+Level.DRAGON_LEFT = 43;
+Level.DRAGON_RIGHT = 44;
+Level.INSECT = 45;
+Level.SWAP = 46;
+Level.MISSILE = 47;
+Level.DOOR = 48;
+Level.DEPLETED = 49;
+Level.NUT = 50;
+Level.KILL = 51;
+Level.LIFE = 52;
+Level.DEATH = 53;
+Level.GLUE = 54;
+Level.GUARDIAN = 55;
+Level.MINE = 56;
+Level.DIR = [[1,0],[0,1],[-1,0],[0,-1]];
 Main.COL_SPACE = 80;
+Map.BW = 20;
+Map.BH = 18;
+Map.ZONE_MARGIN = 10;
+Map.WW = 0;
+Map.HH = 0;
+Map.SX = 0;
+Map.SY = 0;
 ZoneInfo.DIF = 0;
 ZoneInfo.TOLERANCE = 0.3;
 ZoneInfo.MOLTEAR = 0;
@@ -973,6 +3363,15 @@ MissionInfo.decryptedList = [{ x : 0, y : 0, "fam" : 0},{ x : 0, y : -1, "fam" :
 MissionInfo.ITEMS = [];
 MissionInfo.LIST = [{ name : "mission_name_0", desc : "mission_desc_0", end : "mission_end_0", startConditions : [], conditions : [[0,0]], startItem : [[0,4],[80,3]], endItem : [[80,3]]},{ name : "mission_name_1", desc : "mission_desc_1", end : "mission_end_1", startConditions : [[5,0]], conditions : [[0,1,2,3]], startItem : [[1,1],[2,1],[3,1]], endItem : [[-8],[4,3]]},{ name : "mission_name_2", desc : "mission_desc_2", end : "mission_end_2", startConditions : [[5,3]], conditions : [[2,1]], startItem : [], endItem : [[-1,200],[-5,12]]},{ name : "mission_name_3", desc : "mission_desc_3", end : "mission_end_3", startConditions : [[5,1]], conditions : [[0,5]], startItem : [[5,4]], endItem : [[6,2],[-5,5]]},{ name : "mission_name_4", desc : "mission_desc_4", end : "mission_end_4", startConditions : [[5,3]], conditions : [[0,7],[0,8],[0,9],[0,10],[0,11],[0,12],[0,13]], startItem : [[7,1],[8,1],[9,1],[10,1],[11,1],[12,1],[13,1]], endItem : [[14,1],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0]]},{ name : "mission_name_5", desc : null, end : "mission_end_5", startConditions : [[5,3]], conditions : [[4,4,-4,7]], startItem : [], endItem : [[6,0],[-3]]},{ name : "mission_name_6", desc : null, end : "mission_end_6", startConditions : [[5,0]], conditions : [[0,15]], startItem : [[15,4]], endItem : []},{ name : "mission_name_7", desc : "mission_desc_7", end : "mission_end_7", startConditions : [[5,6]], conditions : [[0,16]], startItem : [[16,4]], endItem : []},{ name : "mission_name_8", desc : null, end : "mission_end_8", startConditions : [[5,7]], conditions : [[4,7,-10,5]], startItem : [], endItem : [[-5,10]]},{ name : "mission_name_9", desc : "mission_desc_9", end : "mission_end_9", startConditions : [[5,120]], conditions : [], startItem : [], endItem : []},{ name : "mission_name_10", desc : "mission_desc_10", end : "mission_end_10", startConditions : [[5,14]], conditions : [[3,-9,-39,12]], startItem : [], endItem : []},{ name : "mission_name_11", desc : "mission_desc_11", end : "mission_end_11", startConditions : [[5,10]], conditions : [[2,5]], startItem : [], endItem : [[-3]]},{ name : "mission_name_12", desc : "mission_desc_12", end : "mission_end_12", startConditions : [[5,1]], conditions : [[0,18]], startItem : [[18,1]], endItem : []},{ name : "mission_name_13", desc : "mission_desc_13", end : "mission_end_13", startConditions : [[5,1]], conditions : [[1,0]], startItem : [], endItem : [[58,3]]},{ name : "mission_name_14", desc : "mission_desc_14", end : "mission_end_14", startConditions : [[5,15]], conditions : [[0,61,62]], startItem : [[61,1],[62,1]], endItem : [[59,3]]},{ name : "mission_name_15", desc : "mission_desc_15", end : "mission_end_15", startConditions : [[5,4]], conditions : [[0,81]], startItem : [[81,1]], endItem : []},{ name : "mission_name_16", desc : "mission_desc_16", end : "mission_end_16", startConditions : [[5,11]], conditions : [[0,63,64,65,66,67,68,69]], startItem : [[63,1],[64,1],[65,1],[66,1],[67,1],[68,1],[69,1]], endItem : [[70,3]]},{ name : "mission_name_17", desc : null, end : "mission_end_17", startConditions : [[5,0]], conditions : [[0,71,72,73]], startItem : [[71,5],[72,5],[73,5]], endItem : [[74,2]]},{ name : "mission_name_18", desc : null, end : "mission_end_18", startConditions : [[5,0]], conditions : [[4,0,0,6]], startItem : [], endItem : [[-4],[-4],[-4]]},{ name : "mission_name_19", desc : null, end : "mission_end_19", startConditions : [[0,80]], conditions : [[3,-10,-11,3],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,19]]},{ name : "mission_name_20", desc : null, end : "mission_end_20", startConditions : [[5,8],[8,171]], conditions : [[3,-58,36,9]], startItem : [], endItem : [[79,1]]},{ name : "mission_name_21", desc : "mission_desc_21", end : "mission_end_21", startConditions : [[5,14]], conditions : [[0,75]], startItem : [[75,1]], endItem : []},{ name : "mission_name_22", desc : "mission_desc_22", end : "mission_end_22", startConditions : [[5,11]], conditions : [[0,76]], startItem : [[76,1]], endItem : []},{ name : "mission_name_23", desc : "mission_name_23", end : "mission_end_23", startConditions : [[0,86],[9,100],[5,22]], conditions : [[0,77]], startItem : [[77,1]], endItem : []},{ name : "mission_name_24", desc : null, end : "mission_end_24", startConditions : [[0,80]], conditions : [[3,48,13,5],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,24]]},{ name : "mission_name_25", desc : null, end : "mission_end_25", startConditions : [[0,80]], conditions : [[3,-22,43,6],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,25]]},{ name : "mission_name_26", desc : null, end : "mission_end_26", startConditions : [[0,80]], conditions : [[3,-67,-32,7],[0,80]], startItem : [], endItem : [[-7],[80,0],[-10,26]]},{ name : "mission_name_27", desc : "mission_desc_27", end : "mission_end_27", startConditions : [[5,21]], conditions : [[0,82,83,84,85]], startItem : [[82,5],[83,5],[84,5],[85,5]], endItem : [[60,2]]},{ name : "mission_name_28", desc : "mission_desc_28", end : "mission_end_28", startConditions : [[8,95],[8,86],[4,27,6,ZoneInfo.ASTEROBELT_RAY - 20]], conditions : [[4,27,6,ZoneInfo.ASTEROBELT_RAY],[8,95]], startItem : [], endItem : [[86,2],[-11],[-10,28]]},{ name : "mission_name_29", desc : "mission_desc_29", end : "mission_end_29", startConditions : [[4,7,-10,8],[0,16]], conditions : [[0,87,88,89,90]], startItem : [[87,1],[88,1],[89,1],[90,1]], endItem : [[91,2]]},{ name : "mission_name_30", desc : "mission_desc_30", end : "mission_end_30", startConditions : [[5,29],[5,5]], conditions : [[1,28]], startItem : [], endItem : [[-4]]},{ name : "mission_name_31", desc : "mission_desc_31", end : "mission_end_31", startConditions : [[8,92],[8,86],[5,30],[4,-12,-1,60]], conditions : [[0,92]], startItem : [[92,6]], endItem : [[-5,20]]},{ name : "mission_name_32", desc : "mission_desc_32", end : "mission_end_32", startConditions : [[8,92],[0,86],[5,30],[4,-12,-1,70]], conditions : [[0,93]], startItem : [[93,6]], endItem : [[92,2]]},{ name : "mission_name_33", desc : "mission_desc_33", end : "mission_end_33", startConditions : [[0,86],[4,27,6,ZoneInfo.ASTEROBELT_RAY + 20]], conditions : [[3,67,153,7]], startItem : [], endItem : []},{ name : "mission_name_34", desc : "mission_desc_34", end : "mission_end_34", startConditions : [[0,86],[3,67,153,5]], conditions : [[0,94]], startItem : [[94,6]], endItem : [[-9]]},{ name : "mission_name_35", desc : "mission_desc_35", end : "mission_end_35", startConditions : [[8,86],[9,63]], conditions : [[5,120]], startItem : [[-5,20]], endItem : []},{ name : "mission_name_36", desc : "mission_desc_36", end : "mission_end_36", startConditions : [[8,86],[9,52]], conditions : [[2,14]], startItem : [[95,2],[-10,28]], endItem : [[-1,1500]]},{ name : "mission_name_37", desc : "mission_desc_37", end : "mission_end_37", startConditions : [[8,86],[9,100]], conditions : [[0,96]], startItem : [[96,1]], endItem : []},{ name : "mission_name_38", desc : "mission_desc_38", end : "mission_end_38", startConditions : [[8,86],[9,87]], conditions : [[0,97,98,99,100,101]], startItem : [[97,5],[98,5],[99,5],[100,5],[101,5]], endItem : [[78,2]]},{ name : "mission_name_39", desc : "mission_desc_39", end : "mission_end_39", startConditions : [[0,86],[9,20]], conditions : [[0,102,103,104,105,106,107,108,109]], startItem : [[102,1],[103,1],[104,1],[105,1],[106,1],[107,1],[108,1],[109,1]], endItem : [[110,1]]},{ name : "mission_name_40", desc : "mission_desc_40", end : "mission_end_40", startConditions : [[0,86],[9,5]], conditions : [[2,15]], startItem : [], endItem : [[112,6]]},{ name : "mission_name_41", desc : "mission_desc_41", end : "mission_end_41", startConditions : [[5,30],[5,20]], conditions : [[3,180,-191,6]], startItem : [], endItem : [[-3],[-5,50],[16,0]]},{ name : "mission_name_42", desc : "mission_desc_42", end : "mission_end_42", startConditions : [[8,86],[9,73]], conditions : [[0,113]], startItem : [[113,6]], endItem : []},{ name : "mission_name_43", desc : null, end : "mission_end_43", startConditions : [[5,5]], conditions : [[0,114,115,116,117,118,119,120,121,122,123,124,125]], startItem : [[114,6],[115,6],[116,6],[117,6],[118,6],[119,6],[120,6],[121,6],[122,6],[123,6],[124,6],[125,6]], endItem : []},{ name : "mission_name_44", desc : "mission_desc_44", end : "mission_end_44", startConditions : [[5,43]], conditions : [[0,126]], startItem : [[126,6]], endItem : [[-6]]},{ name : "mission_name_45", desc : "mission_desc_45", end : "mission_end_45", startConditions : [[8,86],[9,58]], conditions : [[2,17]], startItem : [], endItem : [[127,2]]},{ name : "mission_name_46", desc : null, end : "mission_end_46", startConditions : [[5,0]], conditions : [[5,120]], startItem : [[128,6],[129,6],[130,6],[131,6],[132,6],[133,6],[134,6],[135,6],[136,6],[137,6],[138,6],[139,6],[140,6],[141,6],[142,6],[143,6],[144,6],[145,6],[146,6],[147,6],[148,6],[149,6],[150,6],[151,6],[152,6],[153,6],[154,6],[155,6],[156,6],[157,6],[158,6],[159,6],[160,6],[161,6],[162,6],[163,6],[164,6],[165,6],[166,6],[167,6],[168,6],[169,6]], endItem : []},{ name : "mission_name_41", desc : "mission_desc_41", end : "mission_end_41", startConditions : [[5,30],[0,171]], conditions : [[3,180,-191,6]], startItem : [], endItem : [[-3],[-5,50],[16,0]]}];
 MissionInfo.init = MissionInfo.initFonction();
+Molecule.SUM = 0;
+Molecule.INFOS = [{ pb : 15, mols : [0,1,2]},{ pb : 2, mols : [0,3,3]},{ pb : 5, mols : [4,5,4]},{ pb : 7, mols : [5,1,5]},{ pb : 5, mols : [6,2,1]},{ pb : 40, mols : [2,3,6]},{ pb : 10, mols : [2,5,2]}];
+Molecule.SPEEDER = 0;
+Molecule.BUILDER = 1;
+Molecule.CLEANER = 2;
+Molecule.SPACER = 3;
+Molecule.ARMORER = 4;
+Molecule.FIXER = 5;
+Molecule.LIGHTER = 6;
 ShopInfo.ENGINE_MAX = 6;
 ShopInfo.maxItem = 0;
 ShopInfo.ENGINE = 0;
