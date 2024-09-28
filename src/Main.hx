@@ -23,7 +23,7 @@ class Main {
 		document.getElementById("map_data").appendChild(app.view);
 		
 		textures = new StringMap();
-		var preload = ['mcLuz', 'Star', 'wurmhole', 'merchant', 'pid', 'mapIcons', 'mcShape'];
+		var preload = ['mcLuz', 'Star', 'wurmhole', 'merchant', 'pid', 'mapIcons', 'mcShape', 'mcBrush', 'baseBlocks', 'blocks'];
 		for (i in 0...ZoneInfo.list.length) preload.push('planet$i');
 		
 		Promise.all(preload.map(n -> {
@@ -44,6 +44,7 @@ class Main {
 		app.stage.addChild(new Sprite(map.bmpBg));
 		map.getLevelMap();
 		app.stage.addChild(map.spaceLayer);
+		map.showLevel();
 	}
 
 	public static function close_welcome() {
@@ -52,8 +53,40 @@ class Main {
 	}
 
 	// mt.Lib
+	static public function colToObj(col) {
+		return {
+			r: col >> 16,
+			g: (col >> 8) & 0xFF,
+			b: col & 0xFF
+		};
+	}
+
 	static public function objToCol(o) {
 		return (o.r << 16) | (o.g << 8) | o.b;
+	}
+
+	static public function setPercentColor(mc:pixi.core.sprites.Sprite, prc:Float, col, ?inc:Float, ?alpha = 100) {
+		if (prc == 0) {
+			mc.tint = 0xFFFFFF;
+			return;
+		}
+
+		trace("FIXME");
+		if (inc == null)
+			inc = 0;
+		var color = colToObj(col);
+		var c = prc / 100;
+		var ct = {_: null};
+		var ct = {
+			r: Std.int(c * color.r + inc),
+			g: Std.int(c * color.g + inc),
+			b: Std.int(c * color.b + inc),
+		};
+		setColor(mc, objToCol(ct));
+	}
+
+	static public function setColor(mc, col, ?dec) {
+		mc.tint = col;
 	}
 
 	static public function sMod(n:Float, mod:Float) {

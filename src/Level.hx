@@ -1,7 +1,12 @@
 import haxe.ds.IntMap;
 import haxe.ds.StringMap;
+import js.html.ImageElement;
+import js.lib.Uint8Array;
+import pixi.core.display.DisplayObject;
+import pixi.core.graphics.Graphics;
 import pixi.core.math.Matrix;
 import pixi.core.math.shapes.Rectangle;
+import pixi.core.Pixi.BlendModes;
 import pixi.core.sprites.Sprite;
 import pixi.core.textures.RenderTexture;
 
@@ -83,12 +88,13 @@ class Level {
 	public var proba:Array<Int>;
 	public var bonusTable:StringMap<Int>;
 
-	//public var bmpPaint:PixelHelper;
+	public var blockCol:Uint8Array;
 	public var model:StringMap<Int>;
 	public var distances:Array<Float>;
 	
 	public var blockStats:IntMap<{count:Int}>;
 	public var mineralCount:Int;
+	public var screenshot:ImageElement;
 
 	public function new(x:Int, y:Int, id:Int) {
 		wx = x;
@@ -109,7 +115,7 @@ class Level {
 		lvl = Std.int(Math.pow(dst * 0.1, 0.5));
 		ymax = Std.int(Math.min(12 + lvl, 17));
 		
-		proba = initProba();
+		initProba();
 		
 		genModel();
 	}
@@ -201,8 +207,6 @@ class Level {
 			// trace("proba["+i+"] = "+n);
 			proba[i] = Math.floor(n);
 		}
-		
-		return proba;
 	}
 
 	function genModel() {
@@ -1039,6 +1043,147 @@ class Level {
 				}
 			}
 		}
+	}
+
+	// BUILD PALETTE
+	public function genPalette() {
+		// PAINT
+		// var id = 0;
+		var zone = {col: 0x888888, pal: [[55, 55, 55, 200, 200, 200]]}
+		if (zid != null)
+			zone = ZoneInfo.list[zid];
+
+		var bmpPaint = RenderTexture.create(14, 23);
+		var bg = new Graphics();
+		bg.beginFill(zone.col);
+		bg.drawRect(0, 0, 400, 360);
+		Main.draw(bmpPaint, bg, new Matrix());
+		
+		var brush = Sprite.from(Main.textures.get('mcBrush'));
+		brush.blendMode = pixi.core.Pixi.BlendModes.ADD;
+		var sc = 0.1;
+		var ma = -2;
+		for (i in 0...16) {
+			var m = new Matrix();
+			m.scale(sc, sc);
+			m.translate(ma + seed.random(14 - 2 * ma), ma + seed.random(23 - 2 * ma));
+
+			var pr = zone.pal[seed.random(zone.pal.length)];
+
+			var r = pr[0] + seed.random(pr[3]);
+			var g = pr[1] + seed.random(pr[4]);
+			var b = pr[2] + seed.random(pr[5]);
+
+			var col = Main.objToCol({r: r, g: g, b: b});
+			brush.tint = col;
+			brush.alpha = 0.4;
+
+			Main.draw(bmpPaint, brush, m);
+		}
+
+		blockCol = untyped Main.app.renderer.plugins.extract.pixels(bmpPaint);
+	}
+
+	public function getImage(col) {
+		if (screenshot == null) {
+			genPalette();
+			var bmp = RenderTexture.create(400, 360);
+			var bg = new Graphics();
+			bg.beginFill(col);
+			bg.drawRect(0, 0, 400, 360);
+			Main.draw(bmp, bg, new Matrix());
+
+			// CLOUDS
+			var seed = new Random(wx * 1000 + wy);
+			var brushLight = Sprite.from(Main.textures.get('mcLuz'));
+			var sc = 6;
+			for (i in 0...6) {
+				var m = new Matrix();
+				m.scale((0.5 + seed.rand()) * sc, (0.5 + seed.rand()) * sc);
+				m.translate(seed.random(400), seed.random(360));
+				var bi = 5;
+				var ri = 50;
+				var o = {
+					r: bi + seed.random(ri),
+					g: bi + seed.random(ri),
+					b: bi + seed.random(ri)
+				}
+				Main.setPercentColor(brushLight, 100, Main.objToCol(o));
+				brushLight.alpha = 0.5;
+				var bl = pixi.core.Pixi.BlendModes.ADD;
+				if (i % 2 == 0)
+					bl = BlendModes.EXCLUSION; // 'subtract'
+
+				brushLight.blendMode = bl;
+
+				Main.draw(bmp, brushLight, m);
+			}
+
+			// STARS
+			var brushStar = Sprite.from(Main.textures.get('Star'));
+			brushStar.blendMode = ADD;
+			for (i in 0...100) {
+				var m = new Matrix();
+				var sc = 0.2 + seed.rand() * 0.3;
+				m.scale(sc, sc);
+				m.translate(seed.rand() * 400, seed.rand() * 360);
+				Main.draw(bmp, brushStar, m);
+			}
+
+			// PLANETS
+			if (zid != null) {
+				var zi = ZoneInfo.list[zid];
+				var mc = Sprite.from(Main.textures.get('planet$zid'));
+
+				var m = new Matrix();
+				m.scale(20, 20);
+				m.translate((zi.pos[0] - wx) * 400, (zi.pos[1] - wy) * 360);
+
+				//Col.setColor(mc, spaceColor);
+				Main.draw(bmp, mc, m);
+			}
+
+			// BLOCKS
+			var blockLayer = RenderTexture.create(400, 360);
+			var skinBase = Main.textures.get('baseBlocks');
+			var skin = Main.textures.get('blocks');
+			var frame = new Rectangle(0, 0, 28, 14);
+
+			for (x in 0...14) {
+				for (y in 0...23) {
+					var type = model.get('${x},${y}');
+					if (type != null) {
+						var brush:Sprite;
+
+						if (type < BONUS) {
+							var color:Array<Int>;
+							if (type == 0) {
+								color = [Main.getPixel(blockCol, x, y, 14)];
+							} else {
+								color = [0x885533];
+								if (type > 5) type = 5;
+							}
+							frame.y = type * 14;
+							skinBase.frame = frame;
+							brush = Sprite.from(skinBase);
+							brush.tint = color[0];
+						} else {
+							frame.y = (type - 10) * 14;
+							skin.frame = frame;
+							brush = Sprite.from(skin);
+						}
+
+						var m = new Matrix();
+						m.translate(4 + 28 * x, 14 * y);
+						Main.draw(blockLayer, brush, m);
+					}
+				}
+			}
+			Main.draw(bmp, Sprite.from(blockLayer), new Matrix());
+			screenshot = untyped Main.app.renderer.plugins.extract.image(bmp, "image/webp");
+		}
+		
+		return screenshot;
 	}
 }
 

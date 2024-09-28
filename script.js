@@ -26,7 +26,7 @@ var Level = function(x,y,id) {
 	this.ang = Math.atan2(y,x);
 	this.lvl = Math.pow(this.dst * 0.1,0.5) | 0;
 	this.ymax = Math.min(12 + this.lvl,17) | 0;
-	this.proba = this.initProba();
+	this.initProba();
 	this.genModel();
 };
 Level.__name__ = true;
@@ -146,7 +146,6 @@ Level.prototype = {
 			}
 			this.proba[i] = Math.floor(n);
 		}
-		return this.proba;
 	}
 	,genModel: function() {
 		if(this.struct == null) {
@@ -2185,6 +2184,128 @@ Level.prototype = {
 			}
 		}
 	}
+	,genPalette: function() {
+		var zone = { col : 8947848, pal : [[55,55,55,200,200,200]]};
+		if(this.zid != null) {
+			zone = ZoneInfo.list[this.zid];
+		}
+		var bmpPaint = PIXI.RenderTexture.create(14,23);
+		var bg = new PIXI.Graphics();
+		bg.beginFill(zone.col);
+		bg.drawRect(0,0,400,360);
+		Main.draw(bmpPaint,bg,new PIXI.Matrix());
+		var brush = PIXI.Sprite.from(Main.textures.h["mcBrush"]);
+		brush.blendMode = PIXI.BLEND_MODES.ADD;
+		var sc = 0.1;
+		var ma = -2;
+		var _g = 0;
+		while(_g < 16) {
+			var i = _g++;
+			var m = new PIXI.Matrix();
+			m.scale(sc,sc);
+			m.translate(ma + this.seed.random(14 - 2 * ma),ma + this.seed.random(23 - 2 * ma));
+			var pr = zone.pal[this.seed.random(zone.pal.length)];
+			var r = pr[0] + this.seed.random(pr[3]);
+			var g = pr[1] + this.seed.random(pr[4]);
+			var b = pr[2] + this.seed.random(pr[5]);
+			var col = Main.objToCol({ r : r, g : g, b : b});
+			brush.tint = col;
+			brush.alpha = 0.4;
+			Main.draw(bmpPaint,brush,m);
+		}
+		this.blockCol = Main.app.renderer.plugins.extract.pixels(bmpPaint);
+	}
+	,getImage: function(col) {
+		if(this.screenshot == null) {
+			this.genPalette();
+			var bmp = PIXI.RenderTexture.create(400,360);
+			var bg = new PIXI.Graphics();
+			bg.beginFill(col);
+			bg.drawRect(0,0,400,360);
+			Main.draw(bmp,bg,new PIXI.Matrix());
+			var seed = new Random(this.wx * 1000 + this.wy);
+			var brushLight = PIXI.Sprite.from(Main.textures.h["mcLuz"]);
+			var sc = 6;
+			var _g = 0;
+			while(_g < 6) {
+				var i = _g++;
+				var m = new PIXI.Matrix();
+				m.scale((0.5 + seed.rand()) * sc,(0.5 + seed.rand()) * sc);
+				m.translate(seed.random(400),seed.random(360));
+				var bi = 5;
+				var ri = 50;
+				var o = { r : bi + seed.random(ri), g : bi + seed.random(ri), b : bi + seed.random(ri)};
+				Main.setPercentColor(brushLight,100,Main.objToCol(o));
+				brushLight.alpha = 0.5;
+				var bl = PIXI.BLEND_MODES.ADD;
+				if(i % 2 == 0) {
+					bl = PIXI.BLEND_MODES.EXCLUSION;
+				}
+				brushLight.blendMode = bl;
+				Main.draw(bmp,brushLight,m);
+			}
+			var brushStar = PIXI.Sprite.from(Main.textures.h["Star"]);
+			brushStar.blendMode = PIXI.BLEND_MODES.ADD;
+			var _g = 0;
+			while(_g < 100) {
+				var i = _g++;
+				var m = new PIXI.Matrix();
+				var sc = 0.2 + seed.rand() * 0.3;
+				m.scale(sc,sc);
+				m.translate(seed.rand() * 400,seed.rand() * 360);
+				Main.draw(bmp,brushStar,m);
+			}
+			if(this.zid != null) {
+				var zi = ZoneInfo.list[this.zid];
+				var mc = PIXI.Sprite.from(Main.textures.h["planet" + this.zid]);
+				var m = new PIXI.Matrix();
+				m.scale(20,20);
+				m.translate((zi.pos[0] - this.wx) * 400,(zi.pos[1] - this.wy) * 360);
+				Main.draw(bmp,mc,m);
+			}
+			var blockLayer = PIXI.RenderTexture.create(400,360);
+			var skinBase = Main.textures.h["baseBlocks"];
+			var skin = Main.textures.h["blocks"];
+			var frame = new PIXI.Rectangle(0,0,28,14);
+			var _g = 0;
+			while(_g < 14) {
+				var x = _g++;
+				var _g1 = 0;
+				while(_g1 < 23) {
+					var y = _g1++;
+					var type = this.model.h["" + x + "," + y];
+					if(type != null) {
+						var brush;
+						if(type < 10) {
+							var color;
+							if(type == 0) {
+								color = [Main.getPixel(this.blockCol,x,y,14)];
+							} else {
+								color = [8934707];
+								if(type > 5) {
+									type = 5;
+								}
+							}
+							frame.y = type * 14;
+							skinBase.frame = frame;
+							brush = PIXI.Sprite.from(skinBase);
+							brush.tint = color[0];
+						} else {
+							frame.y = (type - 10) * 14;
+							skin.frame = frame;
+							brush = PIXI.Sprite.from(skin);
+						}
+						var m = new PIXI.Matrix();
+						m.translate(4 + 28 * x,14 * y);
+						Main.draw(blockLayer,brush,m);
+					}
+				}
+			}
+			Main.draw(bmp,PIXI.Sprite.from(blockLayer),new PIXI.Matrix());
+			this.screenshot = Main.app.renderer.plugins.extract.image(bmp,"image/webp");
+		}
+		return this.screenshot;
+	}
 };
 var Main = $hx_exports["Main"] = function() { };
 Main.__name__ = true;
@@ -2192,7 +2313,7 @@ Main.main = function() {
 	Main.app = new PIXI.Application({ width : 820, height : 738});
 	window.document.getElementById("map_data").appendChild(Main.app.view);
 	Main.textures = new haxe_ds_StringMap();
-	var preload = ["mcLuz","Star","wurmhole","merchant","pid","mapIcons","mcShape"];
+	var preload = ["mcLuz","Star","wurmhole","merchant","pid","mapIcons","mcShape","mcBrush","baseBlocks","blocks"];
 	var _g = 0;
 	var _g1 = ZoneInfo.list.length;
 	while(_g < _g1) {
@@ -2229,12 +2350,37 @@ Main.init = function() {
 	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
 	Main.map.getLevelMap();
 	Main.app.stage.addChild(Main.map.spaceLayer);
+	Main.map.showLevel();
 };
 Main.close_welcome = function() {
 	window.document.getElementById("welcome").style.display = "none";
 };
+Main.colToObj = function(col) {
+	return { r : col >> 16, g : col >> 8 & 255, b : col & 255};
+};
 Main.objToCol = function(o) {
 	return o.r << 16 | o.g << 8 | o.b;
+};
+Main.setPercentColor = function(mc,prc,col,inc,alpha) {
+	if(alpha == null) {
+		alpha = 100;
+	}
+	if(prc == 0) {
+		mc.tint = 16777215;
+		return;
+	}
+	console.log("src/Main.hx:74:","FIXME");
+	if(inc == null) {
+		inc = 0;
+	}
+	var color = Main.colToObj(col);
+	var c = prc / 100;
+	var ct__ = null;
+	var ct = { r : c * color.r + inc | 0, g : c * color.g + inc | 0, b : c * color.b + inc | 0};
+	Main.setColor(mc,Main.objToCol(ct));
+};
+Main.setColor = function(mc,col,dec) {
+	mc.tint = col;
 };
 Main.sMod = function(n,mod) {
 	if(mod == 0 || mod == null || n == null) {
@@ -2363,6 +2509,20 @@ var Map = function(x,y) {
 					stars.push([(x + seed.rand()) * Map.BW,(y + seed.rand()) * Map.BH,0.2 + seed.rand() * 0.3]);
 				}
 			}
+		}
+	}
+	var px = Main.app.renderer.plugins.extract.pixels(this.bmpBg);
+	this.spaceColors = new haxe_ds_StringMap();
+	var _g = 0;
+	var _g1 = this.XMAX;
+	while(_g < _g1) {
+		var x = _g++;
+		var _g2 = 0;
+		var _g3 = this.YMAX;
+		while(_g2 < _g3) {
+			var y = _g2++;
+			var pix = Main.getPixel(px,(x + 0.5 | 0) * Map.BW,(y + 0.5 | 0) * Map.BH,41 * Map.BW);
+			this.spaceColors.h["" + x + "," + y] = pix;
 		}
 	}
 	var brushStar = PIXI.Sprite.from(Main.textures.h["Star"]);
@@ -2622,7 +2782,7 @@ Map.prototype = {
 															this.spaceLayer.beginFill(8323327);
 														} else {
 															this.spaceLayer.beginFill(0,0);
-															console.log("src/Map.hx:281:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + Map.SX) + "][" + (y + Map.SY) + "]");
+															console.log("src/Map.hx:292:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + Map.SX) + "][" + (y + Map.SY) + "]");
 														}
 													}
 												}
@@ -2673,6 +2833,10 @@ Map.prototype = {
 			m.translate((item.x - Map.SX) * Map.BW,(item.y - Map.SY) * Map.BH);
 			Main.draw(this.bmpBg,icon,m);
 		}
+	}
+	,showLevel: function() {
+		var level = this.levelTable.h["20,20"];
+		window.document.getElementById("pic_box").appendChild(level.getImage(this.spaceColors.h["20,20"]));
 	}
 };
 Math.__name__ = true;

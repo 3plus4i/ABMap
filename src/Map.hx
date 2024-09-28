@@ -1,4 +1,5 @@
 import haxe.ds.StringMap;
+import js.Browser.document;
 import pixi.core.graphics.Graphics;
 import pixi.core.math.Matrix;
 import pixi.core.math.shapes.Rectangle;
@@ -24,7 +25,7 @@ class Map {
 	public static var BH = 18;
 	public static var ZONE_MARGIN = 10;
 	public static var itemList:Array<Int>;
-	
+
 	public var XMAX:Int; // map size in zones
 	public var YMAX:Int;
 	public var size:Int;
@@ -34,17 +35,19 @@ class Map {
 	public static var SY = 0;
 	public var CX = 0; // map center coordinates
 	public var CY = 0;
-	
-	public var zones:Array<ZoneI>; //temp public
+
+	public var spaceColors:StringMap<Int>;
 	public var zoneTable:StringMap<Int>;
 	public var seedTable:StringMap<Random>;
 	public var levelTable:StringMap<Level>;
-	
+
 	public var bmpBg:RenderTexture;
 	public var spaceLayer:Graphics;
 	public var planetLayer:Graphics;
 	public var frame:Rectangle;
 	public var itemTex:Texture;
+
+	var zones:Array<ZoneI>;
 	var stars:Array<Star>;
 	
 	public function new(x:Int, y:Int) {
@@ -145,9 +148,17 @@ class Map {
 				}
 			}
 		}
-		
+
+		var px = untyped Main.app.renderer.plugins.extract.pixels(bmpBg);
+
 		// GET COLORS
-		// for level background navi.Map 956
+		spaceColors = new StringMap();
+		for (x in 0...XMAX) {
+			for (y in 0...YMAX) {
+				var pix = Main.getPixel(px, Std.int(x + 0.5) * BW, Std.int(y + 0.5) * BH, 41 * BW);
+				spaceColors.set('$x,$y', pix);
+			}
+		}
 
 		// STARS
 		var brushStar = Sprite.from(Main.textures.get('Star'));
@@ -320,5 +331,10 @@ class Map {
 			m.translate((item.x - SX) * BW, (item.y - SY) * BH);
 			Main.draw(bmpBg, icon, m);
 		}
+	}
+
+	public function showLevel() {
+		var level = levelTable.get('20,20');
+		document.getElementById("pic_box").appendChild(level.getImage(spaceColors.get('20,20')));
 	}
 }
