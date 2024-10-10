@@ -74,7 +74,7 @@ class Level {
 	public var wx:Int;
 	public var wy:Int;
 	public var zid:Int;
-	public var item:Bool;
+	public var hasItem:Bool;
 
 	public var dst:Float;
 	public var ang:Float;
@@ -100,6 +100,7 @@ class Level {
 		wx = x;
 		wy = y;
 		zid = id;
+		hasItem = false;
 		
 		seed = new mt.OldRandom(wx * 10000 + wy);
 		distances = [];
@@ -210,16 +211,14 @@ class Level {
 	}
 
 	function genModel() {
-		/*// ITEM
-		var id = 0;
-		for (n in Cs.pi.items) {
-			var item = MissionInfo.ITEMS[id];
+		// ITEM
+		for (n in Map.itemList) {
+			var item = MissionInfo.ITEMS[n];
 			if (item.x == wx && item.y == wy) {
-				item = True;
+				hasItem = true;
 				break;
 			}
-			id++;
-		}*/
+		}
 
 		// MOLECULES LIST
 
@@ -287,6 +286,7 @@ class Level {
 			frame.y = 101 * seed.random(13);
 			brush.frame = frame;
 			var shape = Sprite.from(brush);
+			shape.anchor.set(0.5);
 
 			Main.draw(bmp, shape, m);
 		}
@@ -625,7 +625,7 @@ class Level {
 		}
 
 		// OBJETS
-		if (item) insertItem();
+		if (hasItem) insertItem();
 	}
 
 	public function forceModel() {
@@ -663,7 +663,6 @@ class Level {
 
 		// trace(sx);
 		// return true;
-
 		var n = getPath(sx, sy, grid, 0);
 		return n == obj;
 	}
@@ -1077,6 +1076,7 @@ class Level {
 			var col = Main.objToCol({r: r, g: g, b: b});
 			brush.tint = col;
 			brush.alpha = 0.4;
+			brush.anchor.set(0.5);
 
 			Main.draw(bmpPaint, brush, m);
 		}
@@ -1115,6 +1115,7 @@ class Level {
 					bl = BlendModes.EXCLUSION; // 'subtract'
 
 				brushLight.blendMode = bl;
+				brushLight.anchor.set(0.5);
 
 				Main.draw(bmp, brushLight, m);
 			}
@@ -1122,6 +1123,7 @@ class Level {
 			// STARS
 			var brushStar = Sprite.from(Main.textures.get('Star'));
 			brushStar.blendMode = ADD;
+			brushStar.anchor.set(0.5);
 			for (i in 0...100) {
 				var m = new Matrix();
 				var sc = 0.2 + seed.rand() * 0.3;
@@ -1134,6 +1136,7 @@ class Level {
 			if (zid != null) {
 				var zi = ZoneInfo.list[zid];
 				var mc = Sprite.from(Main.textures.get('planet$zid'));
+				mc.anchor.set(0.5);
 
 				var m = new Matrix();
 				m.scale(20, 20);
@@ -1164,11 +1167,13 @@ class Level {
 								if (type > 5) type = 5;
 							}
 							frame.y = type * 14;
+							frame.x = 0;
 							skinBase.frame = frame;
 							brush = Sprite.from(skinBase);
 							brush.tint = color[0];
 						} else {
-							frame.y = (type - 10) * 14;
+							frame.y = (type - 9) * 16 + 1;
+							frame.x = 1;
 							skin.frame = frame;
 							brush = Sprite.from(skin);
 						}

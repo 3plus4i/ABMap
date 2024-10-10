@@ -44,7 +44,7 @@ class Main {
 		app.stage.addChild(new Sprite(map.bmpBg));
 		map.getLevelMap();
 		app.stage.addChild(map.spaceLayer);
-		map.showLevel();
+		map.showLevel(20, 20);
 	}
 
 	public static function close_welcome() {

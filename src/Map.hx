@@ -333,8 +333,10 @@ class Map {
 		}
 	}
 
-	public function showLevel() {
-		var level = levelTable.get('20,20');
-		document.getElementById("pic_box").appendChild(level.getImage(spaceColors.get('20,20')));
+	public function showLevel(x:Int, y:Int) {
+		var level = levelTable.get('$x,$y');
+		var node = document.getElementById("pic_box");
+		node.removeChild(node.lastChild);
+		node.appendChild(level.getImage(spaceColors.get('$x,$y')));
 	}
 }

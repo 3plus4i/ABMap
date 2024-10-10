@@ -11,6 +11,7 @@ var Level = function(x,y,id) {
 	this.wx = x;
 	this.wy = y;
 	this.zid = id;
+	this.hasItem = false;
 	this.seed = new mt_OldRandom(this.wx * 10000 + this.wy);
 	this.distances = [];
 	var _g = 0;
@@ -148,6 +149,17 @@ Level.prototype = {
 		}
 	}
 	,genModel: function() {
+		var _g = 0;
+		var _g1 = Map.itemList;
+		while(_g < _g1.length) {
+			var n = _g1[_g];
+			++_g;
+			var item = MissionInfo.ITEMS[n];
+			if(item.x == this.wx && item.y == this.wy) {
+				this.hasItem = true;
+				break;
+			}
+		}
 		if(this.struct == null) {
 			var to = 0;
 			while(true) {
@@ -212,6 +224,7 @@ Level.prototype = {
 			frame.y = 101 * this.seed.random(13);
 			brush.frame = frame;
 			var shape = PIXI.Sprite.from(brush);
+			shape.anchor.set(0.5);
 			Main.draw(bmp,shape,m);
 		}
 		var pixels = Main.app.renderer.plugins.extract.pixels(bmp);
@@ -555,7 +568,7 @@ Level.prototype = {
 				this.model.h["" + p[0] + "," + p[1]] = 1;
 			}
 		}
-		if(this.item) {
+		if(this.hasItem) {
 			this.insertItem();
 		}
 	}
@@ -2211,6 +2224,7 @@ Level.prototype = {
 			var col = Main.objToCol({ r : r, g : g, b : b});
 			brush.tint = col;
 			brush.alpha = 0.4;
+			brush.anchor.set(0.5);
 			Main.draw(bmpPaint,brush,m);
 		}
 		this.blockCol = Main.app.renderer.plugins.extract.pixels(bmpPaint);
@@ -2242,10 +2256,12 @@ Level.prototype = {
 					bl = PIXI.BLEND_MODES.EXCLUSION;
 				}
 				brushLight.blendMode = bl;
+				brushLight.anchor.set(0.5);
 				Main.draw(bmp,brushLight,m);
 			}
 			var brushStar = PIXI.Sprite.from(Main.textures.h["Star"]);
 			brushStar.blendMode = PIXI.BLEND_MODES.ADD;
+			brushStar.anchor.set(0.5);
 			var _g = 0;
 			while(_g < 100) {
 				var i = _g++;
@@ -2258,6 +2274,7 @@ Level.prototype = {
 			if(this.zid != null) {
 				var zi = ZoneInfo.list[this.zid];
 				var mc = PIXI.Sprite.from(Main.textures.h["planet" + this.zid]);
+				mc.anchor.set(0.5);
 				var m = new PIXI.Matrix();
 				m.scale(20,20);
 				m.translate((zi.pos[0] - this.wx) * 400,(zi.pos[1] - this.wy) * 360);
@@ -2287,11 +2304,13 @@ Level.prototype = {
 								}
 							}
 							frame.y = type * 14;
+							frame.x = 0;
 							skinBase.frame = frame;
 							brush = PIXI.Sprite.from(skinBase);
 							brush.tint = color[0];
 						} else {
-							frame.y = (type - 10) * 14;
+							frame.y = (type - 9) * 16 + 1;
+							frame.x = 1;
 							skin.frame = frame;
 							brush = PIXI.Sprite.from(skin);
 						}
@@ -2350,7 +2369,7 @@ Main.init = function() {
 	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
 	Main.map.getLevelMap();
 	Main.app.stage.addChild(Main.map.spaceLayer);
-	Main.map.showLevel();
+	Main.map.showLevel(20,20);
 };
 Main.close_welcome = function() {
 	window.document.getElementById("welcome").style.display = "none";
@@ -2834,9 +2853,11 @@ Map.prototype = {
 			Main.draw(this.bmpBg,icon,m);
 		}
 	}
-	,showLevel: function() {
-		var level = this.levelTable.h["20,20"];
-		window.document.getElementById("pic_box").appendChild(level.getImage(this.spaceColors.h["20,20"]));
+	,showLevel: function(x,y) {
+		var level = this.levelTable.h["" + x + "," + y];
+		var node = window.document.getElementById("pic_box");
+		node.removeChild(node.lastChild);
+		node.appendChild(level.getImage(this.spaceColors.h["" + x + "," + y]));
 	}
 };
 Math.__name__ = true;
