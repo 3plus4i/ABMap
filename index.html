@@ -158,6 +158,27 @@ h2 {
    left: 0px;
 }
 
+#title_box {
+   width: 340px;
+   display: inline-block;
+   font-size: 15px;
+   font-weight: bold;
+   color: #AFFFAF;
+}
+
+#mineral_box {
+   width: 50px;
+   display: inline-block;
+   font-size: 12px;
+   font-weight: bold;
+   color: #AFFFAF;
+}
+
+#mineral {
+   width: 10px;
+   display: none;
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.10/browser/pixi.js"></script>
 <script type="text/javascript" language="JavaScript" src="eebcms_xmlhttp.js"></script>
@@ -179,28 +200,16 @@ h2 {
 <br/>
 <br/>This is the first class navigation system for all prisoners and rebels in the Zonkerian System. You can find out, how many minerals the levels on your route have got and can decide, if it is worth to visit them.
 <br/>
-<br/>Most of the mission subjects of both sides, <span style="color: #00FF00;"><b>ESCORP</b></span> and <span style="color: #FF0000;"><b>FURI</b></span> are marked on this map. You can also find all missiles and can see, what items the shops have to offer
+<br/>Most of the mission subjects of both sides, <span style="color: #00FF00;"><b>ESCORP</b></span> and <span style="color: #FF0000;"><b>FURI</b></span> are marked on this map. You can also find all missiles and can see, what items the shops have to offer.
 <br/>
-<br/>To see the details of a level, simply hover with your mouse over it. If data is available, it will be shown at the right side of the map. To 'scroll' on this map, click on a random point. The new center of the map will be the point you clicked at.
+<br/>To see the details of a level, simply hover with your mouse over it. The level and related data will be shown at the right side of the map. To 'scroll' on this map, click on a random point. The new center of the map will be the point you clicked at.
 <br/>
 <br/>There are two layers: The space and the planetary. The planetary layer shows you all information about the landing sites of all planets and most asteriods. So you can easily find all PID-Pieces, crystals and inhabitants, who need a 'taxi'.
 <br/>
-<br/>At the moment, this map contains information about <b>198987</b> space levels. If you want to provide us with more screenshots, you can use our upload-terminal for them. For taking the screenshots we recommend a program, that will save them in a format, that this site can handle. It is named 'ABScreenMaker' and can be downloaded &raquo;&nbsp;<a href="https://web.archive.org/web/20120419043301/http://minemap.golbarg.fr/ABBackground/ABScreen.exe" target="_blank">here</a>&nbsp;&laquo; More information about this program, you can find &raquo;&nbsp;<a href="https://web.archive.org/web/20120419043301/http://www.alphabounce.com/forum/thread/46281?;page=1" target="_blank">here</a>&nbsp;&laquo;
-<br/>
-<br/>If you want to upload a huge bunch of screens, (about 100 or more) we recommend to ZIP or RAR them all together and upload them to a freehoster-site and post a link to the ZIP/RAR in &raquo;&nbsp;<a href="http://www.alphabounce.com/forum/thread/70614" target="_blank">this thread</a>&nbsp;&laquo;
-<br/>
-<br/>&raquo;&nbsp;<a href="/add.php" target="_blank" onclick="window.open('/add.php', 'Add', 'width=600, height=530, left=100, top=100'); return false;">Upload terminal</a>&nbsp;&laquo; (Popup-blocker may block this window!)
-<br/>
-<br/><span style="color: #FFBF00; font-size: 16px;"><b><i>So help others, then others will help you too !!!</i></b></span>
+<br/>This is an addaption of the map originally created by EEBKiller. It now covers ALL the levels and doesn't rely on user submitted data anymore. The levels are generated and drawn from the source code of the game.
 <br/>
 <br/><span style="font-size: 16px;">&raquo;&nbsp;<a href="#" target="_blank" onclick="Main.close_welcome(); return false;"><b>Close this window</b></a>&nbsp;&laquo;</span>
 <br/>
-<br/>This site got <b>1013789</b> visitors since 21. Dec. 2008.
-<br/>
-<br/>To view this site correctly, we recommend:
-<br/>
-<div align="center"><a href="http://www.firefox-browser.de/" target="_blank"><img src="images/gui/firefox.gif" title="Get Firefox now!" style="margin-bottom: 3px;" alt="" border="0"/></a>
-<br/><img src="images/gui/resolution.gif" title="Resolution" alt="" border="0"/></div>
 </div>
 <table border="0" cellspacing="0" cellpadding="3">
   <tr>
@@ -215,6 +224,15 @@ h2 {
       <table border="0" cellspacing="0" cellpadding="0" style="table-layout: fixed;">
         <tr>
           <td style="width: 410px; height: 370px;" id="pic_box" align="center" align="middle">
+          </td>
+        </tr>
+        <tr>
+          <td align="center" valign="top">
+             <div align="left" valign="center" id="title_box"></div>
+             <div align="right" valign="center" id="mineral_box"></div>
+             <div id="mineral">
+                <img src="images/gui/minerals.gif" border="0" alt=""/>
+             </div>
           </td>
         </tr>
         <tr>

@@ -2331,6 +2331,9 @@ Main.__name__ = true;
 Main.main = function() {
 	Main.app = new PIXI.Application({ width : 820, height : 738});
 	window.document.getElementById("map_data").appendChild(Main.app.view);
+	Main.app.stage.interactive = true;
+	Main.app.stage.buttonMode = true;
+	window.document.getElementById("data_box").innerHTML = "";
 	Main.textures = new haxe_ds_StringMap();
 	var preload = ["mcLuz","Star","wurmhole","merchant","pid","mapIcons","mcShape","mcBrush","baseBlocks","blocks"];
 	var _g = 0;
@@ -2365,14 +2368,60 @@ Main.main = function() {
 };
 Main.init = function() {
 	Map.filerItems();
-	Main.map = new Map(0,0);
-	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
-	Main.map.getLevelMap();
-	Main.app.stage.addChild(Main.map.spaceLayer);
-	Main.map.showLevel(20,20);
+	Main.moveMap(0,0);
 };
 Main.close_welcome = function() {
 	window.document.getElementById("welcome").style.display = "none";
+	Main.app.stage.on("pointermove",Main.setLevel);
+	Main.app.stage.on("pointerup",Main.mapClick);
+};
+Main.setLevel = function(e) {
+	var pos = Main.app.stage.toLocal(e.data.global,Main.app.stage);
+	var box = window.document.getElementById("infobox");
+	if(pos.x >= 0 && pos.x < Main.app.stage.width && pos.y >= 0 && pos.y < Main.app.stage.height) {
+		var x = pos.x / Map.BW | 0;
+		var y = pos.y / Map.BH | 0;
+		var level = "" + x + "," + y;
+		if(Main.currentLevel != level) {
+			Main.map.showLevel(x,y);
+			Main.currentLevel = level;
+			var text = "[" + (x + Main.map.SX) + "][" + (y + Main.map.SY) + "]";
+			var level = Main.map.levelTable.h["" + x + "," + y];
+			var planet = level.zid;
+			if(planet != null) {
+				text += " " + ZoneInfo.list[planet].name;
+			}
+			box.innerHTML = text;
+			window.document.getElementById("title_box").innerHTML = text;
+			var tmp = "" + level.mineralCount;
+			window.document.getElementById("mineral_box").innerHTML = tmp + " ";
+			window.document.getElementById("mineral").style.display = "inline-block";
+		}
+		box.style.left = "" + (e.data.global.x + 20) + "px";
+		box.style.top = "" + (e.data.global.y + 20) + "px";
+		box.style.display = "block";
+	} else {
+		box.style.display = "none";
+	}
+};
+Main.mapClick = function(e) {
+	var pos = Main.app.stage.toLocal(e.data.global,Main.app.stage);
+	if(pos.x >= 0 && pos.x < Main.app.stage.width && pos.y >= 0 && pos.y < Main.app.stage.height) {
+		Main.moveMap((pos.x / Map.BW | 0) + Main.map.SX,(pos.y / Map.BH | 0) + Main.map.SY);
+	}
+};
+Main.moveMap = function(x,y) {
+	Main.app.stage.removeChildren();
+	window.document.getElementById("pic_box").innerHTML = "";
+	window.document.getElementById("title_box").innerHTML = "";
+	window.document.getElementById("mineral_box").innerHTML = "";
+	window.document.getElementById("mineral").style.display = "none";
+	window.document.getElementById("infobox").style.display = "none";
+	Main.map = new Map(x,y);
+	Main.app.stage.addChild(new PIXI.Sprite(Main.map.bmpBg));
+	Main.map.getLevelMap();
+	Main.app.stage.addChild(Main.map.spaceLayer);
+	window.document.querySelector("title").innerHTML = "AlphaBounce - &raquo; The Map &laquo; - [" + x + "][" + y + "]";
 };
 Main.colToObj = function(col) {
 	return { r : col >> 16, g : col >> 8 & 255, b : col & 255};
@@ -2388,7 +2437,7 @@ Main.setPercentColor = function(mc,prc,col,inc,alpha) {
 		mc.tint = 16777215;
 		return;
 	}
-	console.log("src/Main.hx:74:","FIXME");
+	console.log("src/Main.hx:126:","FIXME");
 	if(inc == null) {
 		inc = 0;
 	}
@@ -2434,6 +2483,8 @@ Star.prototype = $extend(PIXI.Sprite.prototype,{
 var Map = function(x,y) {
 	this.CY = 0;
 	this.CX = 0;
+	this.SY = 0;
+	this.SX = 0;
 	this.size = 20;
 	this.XMAX = 2 * this.size + 1;
 	this.YMAX = this.XMAX;
@@ -2441,8 +2492,8 @@ var Map = function(x,y) {
 	Map.HH = this.YMAX * Map.BH;
 	this.CX = x;
 	this.CY = y;
-	Map.SX = this.CX - this.size;
-	Map.SY = this.CY - this.size;
+	this.SX = this.CX - this.size;
+	this.SY = this.CY - this.size;
 	this.levelTable = new haxe_ds_StringMap();
 	this.frame = new PIXI.Rectangle(0,0,Map.BW,Map.BH);
 	this.spaceLayer = new PIXI.Graphics();
@@ -2456,8 +2507,8 @@ var Map = function(x,y) {
 		var _g3 = this.YMAX + Map.ZONE_MARGIN * 2;
 		while(_g2 < _g3) {
 			var y = _g2++;
-			var px = x + Map.SX - Map.ZONE_MARGIN;
-			var py = y + Map.SY - Map.ZONE_MARGIN;
+			var px = x + this.SX - Map.ZONE_MARGIN;
+			var py = y + this.SY - Map.ZONE_MARGIN;
 			var n = px * (1000 + py) + py | 0;
 			var _this = this.seedTable;
 			var value = new Random(n);
@@ -2472,7 +2523,7 @@ var Map = function(x,y) {
 	while(_g < _g1.length) {
 		var zone = _g1[_g];
 		++_g;
-		if(this.isZoneIn(zone.pos)) {
+		if(zone.name != "Terre" && this.isZoneIn(zone.pos)) {
 			var zone1 = { id : id, list : ZoneInfo.getSquares(id)};
 			this.zones.push(zone1);
 			var _g2 = 0;
@@ -2480,8 +2531,8 @@ var Map = function(x,y) {
 			while(_g2 < _g3.length) {
 				var p = _g3[_g2];
 				++_g2;
-				var x = p[0] - Map.SX;
-				var y = p[1] - Map.SY;
+				var x = p[0] - this.SX;
+				var y = p[1] - this.SY;
 				this.zoneTable.h["" + x + "," + y] = id;
 			}
 		}
@@ -2565,7 +2616,7 @@ var Map = function(x,y) {
 		var brush = PIXI.Sprite.from(Main.textures.h["planet" + zone.id]);
 		brush.anchor.set(0.5);
 		var m = new PIXI.Matrix();
-		m.translate((zi.pos[0] - Map.SX) * Map.BW,(zi.pos[1] - Map.SY) * Map.BH);
+		m.translate((zi.pos[0] - this.SX) * Map.BW,(zi.pos[1] - this.SY) * Map.BH);
 		Main.draw(this.bmpBg,brush,m);
 	}
 	var shop = PIXI.Sprite.from(Main.textures.h["merchant"]);
@@ -2577,8 +2628,8 @@ var Map = function(x,y) {
 		var _g3 = this.YMAX;
 		while(_g2 < _g3) {
 			var y = _g2++;
-			var wx = Map.SX + x;
-			var wy = Map.SY + y;
+			var wx = this.SX + x;
+			var wy = this.SY + y;
 			var dst = Math.sqrt(wx * wx + wy * wy);
 			var seed = this.seedTable.h["" + (x + Map.ZONE_MARGIN) + "," + (y + Map.ZONE_MARGIN)];
 			if(seed.random(40 + Math.pow(dst,1.4) | 0) == 0) {
@@ -2666,9 +2717,9 @@ var Map = function(x,y) {
 	while(_g < 170) {
 		var i = _g++;
 		var item = MissionInfo.ITEMS[i];
-		if(item.x > Map.SX && item.x < Map.SX + this.XMAX && item.y > Map.SY && item.y < Map.SY + this.YMAX) {
+		if(item.x > this.SX && item.x < this.SX + this.XMAX && item.y > this.SY && item.y < this.SY + this.YMAX) {
 			var m = new PIXI.Matrix();
-			m.translate((item.x - Map.SX) * Map.BW,(item.y - Map.SY) * Map.BH);
+			m.translate((item.x - this.SX) * Map.BW,(item.y - this.SY) * Map.BH);
 			Main.draw(this.bmpBg,pid,m);
 		}
 	}
@@ -2753,7 +2804,7 @@ Map.prototype = {
 			var _g3 = this.YMAX;
 			while(_g2 < _g3) {
 				var y = _g2++;
-				var level = new Level(x + Map.SX,y + Map.SY,this.zoneTable.h["" + x + "," + y]);
+				var level = new Level(x + this.SX,y + this.SY,this.zoneTable.h["" + x + "," + y]);
 				this.levelTable.h["" + x + "," + y] = level;
 				level.getBlockTypeStats();
 				var _g4 = level.mineralCount;
@@ -2801,7 +2852,7 @@ Map.prototype = {
 															this.spaceLayer.beginFill(8323327);
 														} else {
 															this.spaceLayer.beginFill(0,0);
-															console.log("src/Map.hx:292:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + Map.SX) + "][" + (y + Map.SY) + "]");
+															console.log("src/Map.hx:292:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + this.SX) + "][" + (y + this.SY) + "]");
 														}
 													}
 												}
@@ -2821,10 +2872,10 @@ Map.prototype = {
 		if(pos[2] == 0) {
 			return false;
 		}
-		var xMin = Map.SX;
-		var yMin = Map.SY;
-		var XMAX = Map.SX + this.XMAX;
-		var YMAX = Map.SY + this.YMAX;
+		var xMin = this.SX;
+		var yMin = this.SY;
+		var XMAX = this.SX + this.XMAX;
+		var YMAX = this.SY + this.YMAX;
 		if(pos.length == 3) {
 			xMin -= pos[2];
 			yMin -= pos[2];
@@ -2844,19 +2895,19 @@ Map.prototype = {
 	}
 	,drawIcon: function(id,sIndex) {
 		var item = MissionInfo.ITEMS[id];
-		if(item.x > Map.SX && item.x < Map.SX + this.XMAX && item.y > Map.SY && item.y < Map.SY + this.YMAX) {
+		if(item.x > this.SX && item.x < this.SX + this.XMAX && item.y > this.SY && item.y < this.SY + this.YMAX) {
 			this.frame.y = sIndex * Map.BH;
 			this.itemTex.frame = this.frame;
 			var icon = PIXI.Sprite.from(this.itemTex);
 			var m = new PIXI.Matrix();
-			m.translate((item.x - Map.SX) * Map.BW,(item.y - Map.SY) * Map.BH);
+			m.translate((item.x - this.SX) * Map.BW,(item.y - this.SY) * Map.BH);
 			Main.draw(this.bmpBg,icon,m);
 		}
 	}
 	,showLevel: function(x,y) {
 		var level = this.levelTable.h["" + x + "," + y];
 		var node = window.document.getElementById("pic_box");
-		node.removeChild(node.lastChild);
+		node.innerHTML = "";
 		node.appendChild(level.getImage(this.spaceColors.h["" + x + "," + y]));
 	}
 };
@@ -3395,8 +3446,6 @@ Map.BH = 18;
 Map.ZONE_MARGIN = 10;
 Map.WW = 0;
 Map.HH = 0;
-Map.SX = 0;
-Map.SY = 0;
 ZoneInfo.DIF = 0;
 ZoneInfo.TOLERANCE = 0.3;
 ZoneInfo.MOLTEAR = 0;

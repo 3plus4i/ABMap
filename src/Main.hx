@@ -8,6 +8,7 @@ import pixi.core.math.Matrix;
 import pixi.core.sprites.Sprite;
 import pixi.core.textures.RenderTexture;
 import pixi.core.textures.Texture;
+import pixi.interaction.InteractionEvent;
 
 @:expose("Main")
 class Main {
@@ -17,11 +18,17 @@ class Main {
 	public static var map:Map;
 	
 	public static var textures:StringMap<Texture>;
+	public static var currentLevel:String;
 	
 	public static function main() {
 		app = new Application({ width: 820, height: 738 });
 		document.getElementById("map_data").appendChild(app.view);
-		
+
+		app.stage.interactive = true;
+		app.stage.buttonMode = true;
+
+		document.getElementById("data_box").innerHTML = '';
+
 		textures = new StringMap();
 		var preload = ['mcLuz', 'Star', 'wurmhole', 'merchant', 'pid', 'mapIcons', 'mcShape', 'mcBrush', 'baseBlocks', 'blocks'];
 		for (i in 0...ZoneInfo.list.length) preload.push('planet$i');
@@ -40,16 +47,61 @@ class Main {
 	
 	public static function init() {
 		Map.filerItems();
-		map = new Map(0, 0);
-		app.stage.addChild(new Sprite(map.bmpBg));
-		map.getLevelMap();
-		app.stage.addChild(map.spaceLayer);
-		map.showLevel(20, 20);
+		moveMap(0, 0);
 	}
 
 	public static function close_welcome() {
 		document.getElementById("welcome").style.display = 'none';
+		app.stage.on("pointermove", setLevel);
+		app.stage.on("pointerup", mapClick);
 		//document.cookie = 'abmap_welcome=1; expires=' + expires2;
+	}
+
+	public static function setLevel(e:InteractionEvent) {
+		var pos = app.stage.toLocal(e.data.global, app.stage);
+		var box = document.getElementById("infobox");
+		if (pos.x >= 0 && pos.x < app.stage.width && pos.y >= 0 && pos.y < app.stage.height) {
+			var x = Std.int(pos.x / Map.BW);
+			var y = Std.int(pos.y / Map.BH);
+			var level = '$x,$y';
+
+			if (currentLevel != level) {
+				map.showLevel(x, y);
+				currentLevel = level;
+				var text = '[${x + map.SX}][${y + map.SY}]';
+				var level = map.levelTable.get('$x,$y');
+				var planet = level.zid;
+				if (planet != null) text += ' ${ZoneInfo.list[planet].name}';
+				box.innerHTML = text;
+				document.getElementById("title_box").innerHTML = text;
+				document.getElementById("mineral_box").innerHTML = '${level.mineralCount} ';
+				document.getElementById("mineral").style.display = 'inline-block';
+			}
+			box.style.left = '${e.data.global.x + 20}px';
+			box.style.top = '${e.data.global.y + 20}px';
+			box.style.display = 'block';
+		} else box.style.display = 'none';
+	}
+
+	public static function mapClick(e:InteractionEvent) {
+		var pos = app.stage.toLocal(e.data.global, app.stage);
+		if (pos.x >= 0 && pos.x < app.stage.width && pos.y >= 0 && pos.y < app.stage.height) 
+			moveMap(Std.int(pos.x / Map.BW) + map.SX, Std.int(pos.y / Map.BH) + map.SY);
+	}
+
+	public static function moveMap(x:Int, y:Int) {
+		app.stage.removeChildren();
+		document.getElementById("pic_box").innerHTML = "";
+		document.getElementById("title_box").innerHTML = "";
+		document.getElementById("mineral_box").innerHTML = "";
+		document.getElementById("mineral").style.display = 'none';
+		document.getElementById("infobox").style.display = 'none';
+
+		map = new Map(x, y);
+		app.stage.addChild(new Sprite(map.bmpBg));
+		map.getLevelMap();
+		app.stage.addChild(map.spaceLayer);
+		document.querySelector("title").innerHTML = 'AlphaBounce - &raquo; The Map &laquo; - [$x][$y]';
 	}
 
 	// mt.Lib

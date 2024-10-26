@@ -31,8 +31,8 @@ class Map {
 	public var size:Int;
 	static var WW = 0; // map size in pixels
 	static var HH = 0;
-	public static var SX = 0; // coordinates of top left corner
-	public static var SY = 0;
+	public var SX = 0; // coordinates of top left corner
+	public var SY = 0;
 	public var CX = 0; // map center coordinates
 	public var CY = 0;
 
@@ -84,7 +84,7 @@ class Map {
 		zoneTable = new StringMap();
 
 		for (zone in ZoneInfo.list) {
-			if (isZoneIn(zone.pos)) {
+			if (zone.name != 'Terre' && isZoneIn(zone.pos)) {
 				var zone:ZoneI = cast {
 					id: id,
 					list: ZoneInfo.getSquares(id)
@@ -336,7 +336,7 @@ class Map {
 	public function showLevel(x:Int, y:Int) {
 		var level = levelTable.get('$x,$y');
 		var node = document.getElementById("pic_box");
-		node.removeChild(node.lastChild);
+		node.innerHTML = "";
 		node.appendChild(level.getImage(spaceColors.get('$x,$y')));
 	}
 }
