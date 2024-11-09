@@ -175,6 +175,36 @@ class Map {
 		}
 		
 		// ASTEROIDES
+		var strength = 10;
+		var noise = 0.3;
+		var freq = 0.3;
+		for (x in 0...XMAX) {
+			for (y in 0...YMAX) {
+				var seed = seedTable.get('${x + ZONE_MARGIN},${y + ZONE_MARGIN}');
+				var dx = SX + x - ZoneInfo.ASTEROBELT_CX;
+				var dy = SY + y - ZoneInfo.ASTEROBELT_CY;
+				var a = Math.atan2(dy, dx);
+				var dist = Math.abs(Math.sqrt(dx * dx + dy * dy) - ZoneInfo.ASTEROBELT_RAY);
+				if (dist < strength) {
+					var coef = dist / strength;
+					if (seed.rand() > (1 - freq) + coef * freq) {
+						var asteroide = Sprite.from(Main.textures.get('asteroide'));
+						var m = new Matrix();
+						var px = x + (seed.rand() * 2 - 1) * noise + 0.5;
+						var py = y + (seed.rand() * 2 - 1) * noise + 0.5;
+						asteroide.anchor.set(0.5, 0.5);
+						m.translate(px * BW, py * BH);
+						asteroide.rotation = seed.rand() * 360;
+						var sc = 0.3 + 0.5 * (1 - coef) + seed.rand() * 0.4;
+						asteroide.scale.set(sc, sc);
+
+						Main.draw(bmpBg, asteroide, m);
+
+						zoneTable.set('$x,$y', ZoneInfo.ASTEROBELT);
+					}
+				}
+			}
+		}
 		
 		// PLANETS
 		for (zone in zones) {
@@ -199,6 +229,20 @@ class Map {
 					var m = new Matrix();
 					m.translate(x * BW, y * BH);
 					Main.draw(bmpBg, shop, m);
+				}
+			}
+		}
+		
+		// WURMHOLES
+		var hole = Sprite.from(Main.textures.get('wurmhole'));
+		for (a in ZoneInfo.holes) {
+			for (p in a) {
+				var rx = p[0] - SX;
+				var ry = p[1] - SY;
+				if (rx >= 0 && rx < XMAX && ry >= 0 && ry < YMAX) {
+					var m = new Matrix();
+					m.translate(rx * BW, ry * BH);
+					Main.draw(bmpBg, hole, m);
 				}
 			}
 		}

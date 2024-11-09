@@ -2335,7 +2335,7 @@ Main.main = function() {
 	Main.app.stage.buttonMode = true;
 	window.document.getElementById("data_box").innerHTML = "";
 	Main.textures = new haxe_ds_StringMap();
-	var preload = ["mcLuz","Star","wurmhole","merchant","pid","mapIcons","mcShape","mcBrush","baseBlocks","blocks"];
+	var preload = ["mcLuz","Star","wurmhole","merchant","pid","mapIcons","mcShape","mcBrush","baseBlocks","blocks","asteroide"];
 	var _g = 0;
 	var _g1 = ZoneInfo.list.length;
 	while(_g < _g1) {
@@ -2607,6 +2607,40 @@ var Map = function(x,y) {
 		m.translate(p[0],p[1]);
 		Main.draw(this.bmpBg,brushStar,m);
 	}
+	var strength = 10;
+	var noise = 0.3;
+	var freq = 0.3;
+	var _g = 0;
+	var _g1 = this.XMAX;
+	while(_g < _g1) {
+		var x = _g++;
+		var _g2 = 0;
+		var _g3 = this.YMAX;
+		while(_g2 < _g3) {
+			var y = _g2++;
+			var seed = this.seedTable.h["" + (x + Map.ZONE_MARGIN) + "," + (y + Map.ZONE_MARGIN)];
+			var dx = this.SX + x - ZoneInfo.ASTEROBELT_CX;
+			var dy = this.SY + y - ZoneInfo.ASTEROBELT_CY;
+			var a = Math.atan2(dy,dx);
+			var dist = Math.abs(Math.sqrt(dx * dx + dy * dy) - ZoneInfo.ASTEROBELT_RAY);
+			if(dist < strength) {
+				var coef = dist / strength;
+				if(seed.rand() > 1 - freq + coef * freq) {
+					var asteroide = PIXI.Sprite.from(Main.textures.h["asteroide"]);
+					var m = new PIXI.Matrix();
+					var px = x + (seed.rand() * 2 - 1) * noise + 0.5;
+					var py = y + (seed.rand() * 2 - 1) * noise + 0.5;
+					asteroide.anchor.set(0.5,0.5);
+					m.translate(px * Map.BW,py * Map.BH);
+					asteroide.rotation = seed.rand() * 360;
+					var sc = 0.3 + 0.5 * (1 - coef) + seed.rand() * 0.4;
+					asteroide.scale.set(sc,sc);
+					Main.draw(this.bmpBg,asteroide,m);
+					this.zoneTable.h["" + x + "," + y] = 13;
+				}
+			}
+		}
+	}
 	var _g = 0;
 	var _g1 = this.zones;
 	while(_g < _g1.length) {
@@ -2636,6 +2670,25 @@ var Map = function(x,y) {
 				var m = new PIXI.Matrix();
 				m.translate(x * Map.BW,y * Map.BH);
 				Main.draw(this.bmpBg,shop,m);
+			}
+		}
+	}
+	var hole = PIXI.Sprite.from(Main.textures.h["wurmhole"]);
+	var _g = 0;
+	var _g1 = ZoneInfo.holes;
+	while(_g < _g1.length) {
+		var a = _g1[_g];
+		++_g;
+		var _g2 = 0;
+		while(_g2 < a.length) {
+			var p = a[_g2];
+			++_g2;
+			var rx = p[0] - this.SX;
+			var ry = p[1] - this.SY;
+			if(rx >= 0 && rx < this.XMAX && ry >= 0 && ry < this.YMAX) {
+				var m = new PIXI.Matrix();
+				m.translate(rx * Map.BW,ry * Map.BH);
+				Main.draw(this.bmpBg,hole,m);
 			}
 		}
 	}
@@ -2852,7 +2905,7 @@ Map.prototype = {
 															this.spaceLayer.beginFill(8323327);
 														} else {
 															this.spaceLayer.beginFill(0,0);
-															console.log("src/Map.hx:292:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + this.SX) + "][" + (y + this.SY) + "]");
+															console.log("src/Map.hx:336:","ERROR: mineralCount is " + level.mineralCount + " at [" + (x + this.SX) + "][" + (y + this.SY) + "]");
 														}
 													}
 												}

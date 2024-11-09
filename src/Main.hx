@@ -30,7 +30,7 @@ class Main {
 		document.getElementById("data_box").innerHTML = '';
 
 		textures = new StringMap();
-		var preload = ['mcLuz', 'Star', 'wurmhole', 'merchant', 'pid', 'mapIcons', 'mcShape', 'mcBrush', 'baseBlocks', 'blocks'];
+		var preload = ['mcLuz', 'Star', 'wurmhole', 'merchant', 'pid', 'mapIcons', 'mcShape', 'mcBrush', 'baseBlocks', 'blocks', 'asteroide'];
 		for (i in 0...ZoneInfo.list.length) preload.push('planet$i');
 		
 		Promise.all(preload.map(n -> {
